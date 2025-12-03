@@ -1,0 +1,692 @@
+"use client"
+
+import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
+import { motion, AnimatePresence } from "framer-motion"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { cn } from "@/lib/utils"
+import {
+  MessageSquare,
+  Mic,
+  MicOff,
+  Send,
+  Calendar,
+  User,
+  Stethoscope,
+  Clock,
+  ChevronRight,
+  Plus,
+  Bell,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Sparkles,
+  Heart,
+  Activity,
+  FileText,
+  Phone,
+  Video,
+  Bot,
+  Volume2,
+  Home,
+  History,
+} from "lucide-react"
+
+interface Message {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  timestamp: Date
+  isAudio?: boolean
+}
+
+interface Appointment {
+  id: string
+  doctor: string
+  specialty: string
+  date: string
+  time: string
+  type: "in-person" | "video"
+  status: "upcoming" | "completed" | "cancelled"
+}
+
+interface LinkedDoctor {
+  id: string
+  name: string
+  specialty: string
+  hospital: string
+  avatar: string
+  lastVisit: string
+}
+
+const mockAppointments: Appointment[] = [
+  {
+    id: "1",
+    doctor: "Dr. Oluwaseun Adeyemi",
+    specialty: "General Medicine",
+    date: "Dec 5, 2025",
+    time: "10:00 AM",
+    type: "in-person",
+    status: "upcoming",
+  },
+  {
+    id: "2",
+    doctor: "Dr. Amara Obi",
+    specialty: "Cardiology",
+    date: "Dec 12, 2025",
+    time: "2:30 PM",
+    type: "video",
+    status: "upcoming",
+  },
+]
+
+const mockDoctors: LinkedDoctor[] = [
+  {
+    id: "1",
+    name: "Dr. Oluwaseun Adeyemi",
+    specialty: "General Medicine",
+    hospital: "Lagos University Teaching Hospital",
+    avatar: "/placeholder.svg?height=80&width=80",
+    lastVisit: "Nov 28, 2025",
+  },
+  {
+    id: "2",
+    name: "Dr. Amara Obi",
+    specialty: "Cardiology",
+    hospital: "National Hospital Abuja",
+    avatar: "/placeholder.svg?height=80&width=80",
+    lastVisit: "Nov 15, 2025",
+  },
+]
+
+const quickActions = [
+  { icon: MessageSquare, label: "New Triage", color: "from-primary to-primary/80" },
+  { icon: Calendar, label: "Book Appointment", color: "from-accent to-accent/80" },
+  { icon: FileText, label: "Medical Records", color: "from-kliniq-cyan to-kliniq-cyan/80" },
+  { icon: Phone, label: "Emergency", color: "from-destructive to-destructive/80" },
+]
+
+export default function PatientDashboard() {
+  const [mounted, setMounted] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<"chat" | "appointments" | "doctors">("chat")
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "1",
+      role: "assistant",
+      content:
+        "Ẹ káàbọ̀! Welcome back, Adebayo. How can I help you today? You can ask me about your medications, previous consultations, or describe any symptoms you're experiencing.",
+      timestamp: new Date(),
+    },
+  ])
+  const [inputValue, setInputValue] = useState("")
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: inputValue,
+      timestamp: new Date(),
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInputValue("")
+    setIsTyping(true)
+
+    // Simulate AI response
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
+    const aiResponse: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: getAIResponse(inputValue),
+      timestamp: new Date(),
+    }
+
+    setIsTyping(false)
+    setMessages((prev) => [...prev, aiResponse])
+  }
+
+  const getAIResponse = (query: string): string => {
+    const lowerQuery = query.toLowerCase()
+    if (lowerQuery.includes("headache") || lowerQuery.includes("head")) {
+      return "I understand you're experiencing headaches. Based on Dr. Adeyemi's notes from your last visit, he recommended rest and hydration for mild headaches. If the pain is severe or persistent, I recommend booking a follow-up appointment. Would you like me to schedule one?"
+    }
+    if (lowerQuery.includes("medication") || lowerQuery.includes("pill") || lowerQuery.includes("drug")) {
+      return "According to your records, Dr. Adeyemi prescribed Paracetamol 500mg - take one tablet every 6 hours as needed for pain. Remember to take it after eating, like after your morning pap. Do you need me to explain anything else about your medications?"
+    }
+    if (lowerQuery.includes("appointment") || lowerQuery.includes("book") || lowerQuery.includes("schedule")) {
+      return "I can help you book an appointment! You have an upcoming visit with Dr. Adeyemi on December 5th at 10:00 AM. Would you like to reschedule this, or book a new appointment with a different specialist?"
+    }
+    return "I've noted your concern. To give you the best guidance, I'll flag this for the nursing team to review. In the meantime, if you're experiencing any severe symptoms, please don't hesitate to use the emergency contact feature. Is there anything else I can help clarify?"
+  }
+
+  const toggleRecording = () => {
+    setIsRecording(!isRecording)
+    if (!isRecording) {
+      // Simulate voice recording
+      setTimeout(() => {
+        setIsRecording(false)
+        setInputValue("My head has been hurting since morning")
+      }, 2000)
+    }
+  }
+
+  const navItems = [
+    { icon: Home, label: "Dashboard", active: true },
+    { icon: MessageSquare, label: "Messages", badge: 3 },
+    { icon: Calendar, label: "Appointments" },
+    { icon: History, label: "History" },
+    { icon: Settings, label: "Settings" },
+  ]
+
+  if (!mounted) return null
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar - Desktop */}
+      <aside className="hidden lg:flex flex-col w-72 bg-card border-r border-border/50 p-6">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-3 mb-10 group">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary to-accent rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+            <div className="relative w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-lg">K</span>
+            </div>
+          </div>
+          <span className="text-xl font-bold text-foreground">Kliniq</span>
+        </Link>
+
+        {/* User Profile Card */}
+        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-card to-accent/5 border border-border/50 mb-8 overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-full" />
+          <div className="relative flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
+              A
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Adebayo Ogundimu</p>
+              <p className="text-xs text-muted-foreground">Patient ID: KLQ-2847</p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+            <span>Yoruba</span>
+            <span className="text-border">•</span>
+            <span>Lagos, Nigeria</span>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-2">
+          {navItems.map((item) => (
+            <button
+              key={item.label}
+              className={cn(
+                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                item.active
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
+              )}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="font-medium">{item.label}</span>
+              {item.badge && (
+                <span className="ml-auto w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className="pt-6 border-t border-border/50 space-y-2">
+          <ThemeToggle />
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200">
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Log Out</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <motion.aside
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-card border-r border-border/50 p-6 z-50"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <Link href="/" className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
+                    <span className="text-primary-foreground font-bold text-lg">K</span>
+                  </div>
+                  <span className="text-xl font-bold text-foreground">Kliniq</span>
+                </Link>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-2 rounded-xl hover:bg-secondary transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              {/* Same nav content as desktop */}
+              <nav className="space-y-2">
+                {navItems.map((item) => (
+                  <button
+                    key={item.label}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+                      item.active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-h-screen">
+        {/* Top Header */}
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="lg:hidden p-2 rounded-xl hover:bg-secondary transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Good Morning, Adebayo</h1>
+                <p className="text-sm text-muted-foreground">How are you feeling today?</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button className="relative p-2 rounded-xl hover:bg-secondary transition-colors">
+                <Bell className="w-5 h-5 text-muted-foreground" />
+                <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+              </button>
+              <div className="hidden md:block">
+                <ThemeToggle />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            {quickActions.map((action, index) => (
+              <motion.button
+                key={action.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className="relative group p-5 rounded-2xl bg-card border border-border/50 overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div
+                  className={cn(
+                    "relative w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center mb-3",
+                    action.color,
+                  )}
+                >
+                  <action.icon className="w-6 h-6 text-white" />
+                </div>
+                <span className="relative font-medium text-foreground">{action.label}</span>
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Tab Navigation */}
+          <div className="flex items-center gap-2 mb-6 p-1.5 bg-secondary/30 rounded-2xl w-fit">
+            {[
+              { id: "chat", label: "AI Assistant", icon: Bot },
+              { id: "appointments", label: "Appointments", icon: Calendar },
+              { id: "doctors", label: "My Doctors", icon: Stethoscope },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300",
+                  activeTab === tab.id
+                    ? "bg-card text-foreground shadow-md"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          <AnimatePresence mode="wait">
+            {activeTab === "chat" && (
+              <motion.div
+                key="chat"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="grid lg:grid-cols-3 gap-6"
+              >
+                {/* Chat Area */}
+                <div className="lg:col-span-2 flex flex-col bg-card rounded-3xl border border-border/50 overflow-hidden h-[600px]">
+                  {/* Chat Header */}
+                  <div className="flex items-center gap-4 p-5 border-b border-border/50 bg-gradient-to-r from-primary/5 via-transparent to-accent/5">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                        <Bot className="w-6 h-6 text-primary-foreground" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-card" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Kliniq AI Assistant</h3>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        Speaks Yoruba • Powered by N-ATLaS
+                      </p>
+                    </div>
+                    <button className="ml-auto p-2 rounded-xl hover:bg-secondary transition-colors">
+                      <Volume2 className="w-5 h-5 text-muted-foreground" />
+                    </button>
+                  </div>
+
+                  {/* Messages */}
+                  <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                    {messages.map((message) => (
+                      <motion.div
+                        key={message.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[85%] p-4 rounded-2xl",
+                            message.role === "user"
+                              ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-md"
+                              : "bg-secondary/50 text-foreground rounded-bl-md",
+                          )}
+                        >
+                          <p className="text-sm leading-relaxed">{message.content}</p>
+                          <p
+                            className={cn(
+                              "text-xs mt-2",
+                              message.role === "user" ? "text-primary-foreground/70" : "text-muted-foreground",
+                            )}
+                          >
+                            {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                    {isTyping && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+                        <div className="bg-secondary/50 p-4 rounded-2xl rounded-bl-md">
+                          <div className="flex items-center gap-1">
+                            <span
+                              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                              style={{ animationDelay: "0ms" }}
+                            />
+                            <span
+                              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                              style={{ animationDelay: "150ms" }}
+                            />
+                            <span
+                              className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                              style={{ animationDelay: "300ms" }}
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Input Area */}
+                  <div className="p-5 border-t border-border/50 bg-gradient-to-r from-primary/5 via-transparent to-accent/5">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={toggleRecording}
+                        className={cn(
+                          "p-3 rounded-xl transition-all duration-300",
+                          isRecording
+                            ? "bg-destructive text-destructive-foreground animate-pulse"
+                            : "bg-secondary hover:bg-secondary/80 text-muted-foreground",
+                        )}
+                      >
+                        {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                      </button>
+                      <div className="flex-1 relative">
+                        <Input
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                          placeholder="Type or speak your symptoms..."
+                          className="h-12 bg-background/50 border-border/50 rounded-xl pr-12 focus:border-primary"
+                        />
+                      </div>
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!inputValue.trim()}
+                        className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 p-0"
+                      >
+                        <Send className="w-5 h-5" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3 text-center">
+                      Kliniq AI will never diagnose. For emergencies, please contact your doctor directly.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Health Summary Sidebar */}
+                <div className="space-y-6">
+                  {/* Recent Notes */}
+                  <div className="p-5 bg-card rounded-2xl border border-border/50">
+                    <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      Latest Doctor Notes
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-xl bg-secondary/30">
+                        <p className="text-xs text-muted-foreground mb-1">Nov 28, 2025 • Dr. Adeyemi</p>
+                        <p className="text-sm text-foreground">
+                          Prescribed Paracetamol 500mg for headaches. Follow up in 2 weeks if symptoms persist.
+                        </p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-secondary/30">
+                        <p className="text-xs text-muted-foreground mb-1">Nov 15, 2025 • Dr. Obi</p>
+                        <p className="text-sm text-foreground">
+                          Blood pressure normal. Continue current lifestyle modifications.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats */}
+                  <div className="p-5 bg-card rounded-2xl border border-border/50">
+                    <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-primary" />
+                      Health Overview
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/20">
+                        <Heart className="w-5 h-5 text-green-500 mb-2" />
+                        <p className="text-lg font-bold text-foreground">72</p>
+                        <p className="text-xs text-muted-foreground">Heart Rate</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                        <Activity className="w-5 h-5 text-primary mb-2" />
+                        <p className="text-lg font-bold text-foreground">120/80</p>
+                        <p className="text-xs text-muted-foreground">Blood Pressure</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === "appointments" && (
+              <motion.div
+                key="appointments"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-foreground">Upcoming Appointments</h2>
+                  <Button className="bg-gradient-to-r from-primary to-primary/80">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Book New
+                  </Button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  {mockAppointments.map((apt, index) => (
+                    <motion.div
+                      key={apt.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="group relative p-5 bg-card rounded-2xl border border-border/50 overflow-hidden hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 transition-all duration-300"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                              {apt.type === "video" ? (
+                                <Video className="w-6 h-6 text-primary" />
+                              ) : (
+                                <User className="w-6 h-6 text-primary" />
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-foreground">{apt.doctor}</h3>
+                              <p className="text-sm text-muted-foreground">{apt.specialty}</p>
+                            </div>
+                          </div>
+                          <span className="px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-xs font-medium">
+                            {apt.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <Calendar className="w-4 h-4" />
+                            {apt.date}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4" />
+                            {apt.time}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-4">
+                          <Button variant="outline" size="sm" className="flex-1 rounded-xl bg-transparent">
+                            Reschedule
+                          </Button>
+                          <Button size="sm" className="flex-1 rounded-xl bg-primary hover:bg-primary/90">
+                            {apt.type === "video" ? "Join Call" : "View Details"}
+                          </Button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === "doctors" && (
+              <motion.div
+                key="doctors"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-foreground">My Linked Doctors</h2>
+                  <Button variant="outline" className="rounded-xl bg-transparent">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Link New Doctor
+                  </Button>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  {mockDoctors.map((doctor, index) => (
+                    <motion.div
+                      key={doctor.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="group relative p-5 bg-card rounded-2xl border border-border/50 overflow-hidden hover:shadow-lg hover:shadow-primary/10 hover:border-primary/30 transition-all duration-300"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="relative flex items-start gap-4">
+                        <img
+                          src={doctor.avatar || "/placeholder.svg"}
+                          alt={doctor.name}
+                          className="w-16 h-16 rounded-xl object-cover"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground">{doctor.name}</h3>
+                          <p className="text-sm text-primary font-medium">{doctor.specialty}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{doctor.hospital}</p>
+                          <div className="flex items-center gap-4 mt-3">
+                            <span className="text-xs text-muted-foreground">Last visit: {doctor.lastVisit}</span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </main>
+    </div>
+  )
+}
