@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
+import { PatientSidebar } from "@/components/patient-sidebar"
 import {
   MessageSquare,
   Mic,
@@ -189,143 +190,25 @@ export default function PatientDashboard() {
   }
 
   const navItems = [
-    { icon: Home, label: "Dashboard", active: true },
-    { icon: MessageSquare, label: "Messages", badge: 3 },
-    { icon: Calendar, label: "Appointments" },
-    { icon: History, label: "History" },
-    { icon: Settings, label: "Settings" },
+    { icon: Home, label: "Dashboard", href: "/dashboard", active: true },
+    { icon: MessageSquare, label: "Messages", href: "/dashboard/messages", badge: 3 },
+    { icon: Calendar, label: "Appointments", href: "/dashboard/appointments" },
+    { icon: History, label: "History", href: "/dashboard/history" },
+    { icon: Settings, label: "Settings", href: "/dashboard/settings" },
   ]
 
   if (!mounted) return null
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex flex-col w-72 bg-card border-r border-border/50 p-6">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 mb-10 group">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary to-accent rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="relative w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">K</span>
-            </div>
-          </div>
-          <span className="text-xl font-bold text-foreground">Kliniq</span>
-        </Link>
-
-        {/* User Profile Card */}
-        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-card to-accent/5 border border-border/50 mb-8 overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-full" />
-          <div className="relative flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
-              A
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">Adebayo Ogundimu</p>
-              <p className="text-xs text-muted-foreground">Patient ID: KLQ-2847</p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>Yoruba</span>
-            <span className="text-border">•</span>
-            <span>Lagos, Nigeria</span>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                item.active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-              )}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
-              {item.badge && (
-                <span className="ml-auto w-5 h-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="pt-6 border-t border-border/50 space-y-2">
-          <ThemeToggle />
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200">
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Log Out</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-              onClick={() => setSidebarOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-card border-r border-border/50 p-6 z-50"
-            >
-              <div className="flex items-center justify-between mb-10">
-                <Link href="/" className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-lg">K</span>
-                  </div>
-                  <span className="text-xl font-bold text-foreground">Kliniq</span>
-                </Link>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-2 rounded-xl hover:bg-secondary transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {/* Same nav content as desktop */}
-              <nav className="space-y-2">
-                {navItems.map((item) => (
-                  <button
-                    key={item.label}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                      item.active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                    )}
-                  >
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                ))}
-              </nav>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      <PatientSidebar activePath="/dashboard" sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-screen">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 px-6 py-4">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden p-2 rounded-xl hover:bg-secondary transition-colors"
@@ -333,13 +216,13 @@ export default function PatientDashboard() {
                 <Menu className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">Good Morning, Adebayo</h1>
-                <p className="text-sm text-muted-foreground">How are you feeling today?</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">Good Morning, Adebayo</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">How are you feeling today?</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button className="relative p-2 rounded-xl hover:bg-secondary transition-colors">
-                <Bell className="w-5 h-5 text-muted-foreground" />
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
               </button>
               <div className="hidden md:block">
@@ -349,9 +232,9 @@ export default function PatientDashboard() {
           </div>
         </header>
 
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {quickActions.map((action, index) => (
               <motion.button
                 key={action.label}

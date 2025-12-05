@@ -1,0 +1,283 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { motion } from "framer-motion"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { cn } from "@/lib/utils"
+import { PatientSidebar } from "@/components/patient-sidebar"
+import {
+    Calendar as CalendarIcon,
+    Clock,
+    Bell,
+    Settings,
+    LogOut,
+    Menu,
+    X,
+    Home,
+    MessageSquare,
+    History,
+    Plus,
+    Search,
+    Filter,
+    Video,
+    MapPin,
+    User,
+    ChevronRight,
+    Download,
+    Edit,
+    Trash2,
+} from "lucide-react"
+
+interface Appointment {
+    id: string
+    doctor: string
+    specialty: string
+    date: string
+    time: string
+    type: "in-person" | "video"
+    status: "upcoming" | "completed" | "cancelled"
+    location?: string
+    notes?: string
+}
+
+const mockAppointments: Appointment[] = [
+    {
+        id: "1",
+        doctor: "Dr. Oluwaseun Adeyemi",
+        specialty: "General Medicine",
+        date: "Dec 5, 2025",
+        time: "10:00 AM",
+        type: "in-person",
+        status: "upcoming",
+        location: "Lagos General Hospital",
+        notes: "Bring previous test results",
+    },
+    {
+        id: "2",
+        doctor: "Dr. Amara Obi",
+        specialty: "Cardiology",
+        date: "Dec 12, 2025",
+        time: "2:30 PM",
+        type: "video",
+        status: "upcoming",
+    },
+    {
+        id: "3",
+        doctor: "Dr. Chidinma Nwosu",
+        specialty: "Dermatology",
+        date: "Nov 28, 2025",
+        time: "11:00 AM",
+        type: "in-person",
+        status: "completed",
+        location: "Lagos General Hospital",
+    },
+    {
+        id: "4",
+        doctor: "Dr. Oluwaseun Adeyemi",
+        specialty: "General Medicine",
+        date: "Nov 15, 2025",
+        time: "3:00 PM",
+        type: "video",
+        status: "completed",
+    },
+]
+
+export default function AppointmentsPage() {
+    const [mounted, setMounted] = useState(false)
+    const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [filter, setFilter] = useState<"all" | "upcoming" | "completed">("all")
+    const [searchQuery, setSearchQuery] = useState("")
+
+    useEffect(() => {
+        setMounted(true)
+    }, [])
+
+    const filteredAppointments = mockAppointments.filter((apt) => {
+        const matchesFilter = filter === "all" || apt.status === filter
+        const matchesSearch =
+            apt.doctor.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            apt.specialty.toLowerCase().includes(searchQuery.toLowerCase())
+        return matchesFilter && matchesSearch
+    })
+
+    if (!mounted) return null
+
+    return (
+        <div className="min-h-screen bg-background flex max-w-full overflow-x-hidden">
+            <PatientSidebar activePath="/dashboard/appointments" sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+            <main className="flex-1 flex flex-col min-h-screen max-w-full">
+                <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl hover:bg-secondary transition-colors">
+                                <Menu className="w-5 h-5" />
+                            </button>
+                            <div>
+                                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">Appointments</h1>
+                                <p className="text-sm text-muted-foreground">Manage your healthcare appointments</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <Button className="bg-gradient-to-r from-primary to-primary/80 sm:px-4">
+                                <Plus className="w-4 h-4" />
+                                <span className="hidden sm:inline ml-2">Book Appointment</span>
+                            </Button>
+                            <button className="relative p-2 rounded-xl hover:bg-secondary transition-colors">
+                                <Bell className="w-5 h-5 text-muted-foreground" />
+                            </button>
+                            <div className="hidden md:block">
+                                <ThemeToggle />
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <div className="flex-1 p-6 overflow-y-auto">
+                    {/* Filters */}
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-6">
+                        <div className="flex items-center gap-2 p-1.5 bg-secondary/30 rounded-xl">
+                            {(["all", "upcoming", "completed"] as const).map((f) => (
+                                <button
+                                    key={f}
+                                    onClick={() => setFilter(f)}
+                                    className={cn(
+                                        "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 capitalize",
+                                        filter === f ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Search appointments..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="pl-10 bg-card border-border/50 rounded-xl"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Appointments Grid */}
+                    <div className="grid gap-4">
+                        {filteredAppointments.map((apt, index) => (
+                            <motion.div
+                                key={apt.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.1 }}
+                                className="group relative p-6 rounded-3xl bg-card border border-border/50 overflow-hidden hover:border-primary/30 transition-all duration-300"
+                            >
+                                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                                <div className="relative flex items-start justify-between gap-4">
+                                    <div className="flex items-start gap-4 flex-1">
+                                        <div
+                                            className={cn(
+                                                "w-14 h-14 rounded-2xl flex items-center justify-center",
+                                                apt.type === "video"
+                                                    ? "bg-gradient-to-br from-accent/20 to-accent/10"
+                                                    : "bg-gradient-to-br from-primary/20 to-primary/10"
+                                            )}
+                                        >
+                                            {apt.type === "video" ? (
+                                                <Video className="w-6 h-6 text-accent" />
+                                            ) : (
+                                                <User className="w-6 h-6 text-primary" />
+                                            )}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <h3 className="font-semibold text-foreground text-lg">{apt.doctor}</h3>
+                                                <span
+                                                    className={cn(
+                                                        "px-2 py-0.5 rounded-full text-xs font-medium",
+                                                        apt.status === "upcoming"
+                                                            ? "bg-green-500/10 text-green-600 dark:text-green-400"
+                                                            : apt.status === "completed"
+                                                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                                                : "bg-red-500/10 text-red-600 dark:text-red-400"
+                                                    )}
+                                                >
+                                                    {apt.status}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-primary mb-3">{apt.specialty}</p>
+                                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+                                                <span className="flex items-center gap-1.5">
+                                                    <CalendarIcon className="w-4 h-4" />
+                                                    {apt.date}
+                                                </span>
+                                                <span className="flex items-center gap-1.5">
+                                                    <Clock className="w-4 h-4" />
+                                                    {apt.time}
+                                                </span>
+                                                {apt.location && (
+                                                    <span className="flex items-center gap-1.5">
+                                                        <MapPin className="w-4 h-4" />
+                                                        {apt.location}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {apt.notes && (
+                                                <p className="mt-3 text-sm text-muted-foreground italic">Note: {apt.notes}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {apt.status === "upcoming" && (
+                                            <>
+                                                <button className="p-2 rounded-xl hover:bg-secondary transition-colors">
+                                                    <Edit className="w-4 h-4 text-muted-foreground" />
+                                                </button>
+                                                <button className="p-2 rounded-xl hover:bg-destructive/10 transition-colors">
+                                                    <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                                                </button>
+                                            </>
+                                        )}
+                                        {apt.status === "completed" && (
+                                            <button className="p-2 rounded-xl hover:bg-secondary transition-colors">
+                                                <Download className="w-4 h-4 text-muted-foreground" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {apt.status === "upcoming" && (
+                                    <div className="relative mt-4 pt-4 border-t border-border/50 flex items-center gap-2">
+                                        <Button size="sm" className="flex-1 rounded-xl bg-primary hover:bg-primary/90">
+                                            {apt.type === "video" ? "Join Video Call" : "View Details"}
+                                            <ChevronRight className="w-4 h-4 ml-2" />
+                                        </Button>
+                                        <Button size="sm" variant="outline" className="flex-1 rounded-xl bg-transparent">
+                                            Reschedule
+                                        </Button>
+                                    </div>
+                                )}
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {filteredAppointments.length === 0 && (
+                        <div className="text-center py-12">
+                            <CalendarIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold text-foreground mb-2">No appointments found</h3>
+                            <p className="text-sm text-muted-foreground mb-6">
+                                {filter === "all" ? "You haven't booked any appointments yet" : `No ${filter} appointments`}
+                            </p>
+                            <Button className="bg-gradient-to-r from-primary to-primary/80">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Book Your First Appointment
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </main>
+        </div>
+    )
+}

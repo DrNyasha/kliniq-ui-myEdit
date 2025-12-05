@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
+import { ClinicianSidebar } from "@/components/clinician-sidebar"
 import {
   Users,
   Clock,
@@ -195,11 +196,11 @@ export default function ClinicianDashboard() {
   }, [])
 
   const navItems = [
-    { icon: Home, label: "Dashboard", active: true },
-    { icon: Users, label: "Patients", badge: role === "nurse" ? 12 : 7 },
-    { icon: Calendar, label: "Schedule" },
-    { icon: Award, label: "Points", badge: "New" },
-    { icon: Settings, label: "Settings" },
+    { icon: Home, label: "Dashboard", href: "/clinician", active: true },
+    { icon: Users, label: "Patients", href: "/clinician/patients", badge: role === "nurse" ? 12 : 7 },
+    { icon: Calendar, label: "Schedule", href: "/clinician/schedule" },
+    { icon: Award, label: "Points", href: "/clinician/points", badge: "New" },
+    { icon: Settings, label: "Settings", href: "/clinician/settings" },
   ]
 
   const filteredCases = mockTriageCases.filter((c) => {
@@ -226,190 +227,14 @@ export default function ClinicianDashboard() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex flex-col w-72 bg-card border-r border-border/50 p-6">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 mb-8 group">
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary to-accent rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-            <div className="relative w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">K</span>
-            </div>
-          </div>
-          <span className="text-xl font-bold text-foreground">Kliniq</span>
-        </Link>
-
-        {/* Role Switcher */}
-        <div className="relative p-1.5 bg-secondary/50 rounded-2xl mb-6">
-          <div className="grid grid-cols-2 gap-1">
-            {(["nurse", "doctor"] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={cn(
-                  "relative px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                  role === r ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {role === r && (
-                  <motion.div
-                    layoutId="roleIndicator"
-                    className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-xl"
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                <span className="relative capitalize">{r}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Profile Card */}
-        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-card to-accent/5 border border-border/50 mb-8 overflow-hidden">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-full" />
-          <div className="relative flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
-              {role === "nurse" ? "NA" : "DR"}
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">{role === "nurse" ? "Nurse Amaka" : "Dr. Oluwaseun"}</p>
-              <p className="text-xs text-muted-foreground">
-                {role === "nurse" ? "Triage Specialist" : "General Physician"}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-xs">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <span className="text-muted-foreground">Online</span>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-primary">
-              <Star className="w-3 h-3 fill-primary" />
-              <span>{pointsData.current} pts</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-2">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                item.active
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-              )}
-            >
-              <item.icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
-              {item.badge && (
-                <span
-                  className={cn(
-                    "ml-auto px-2 py-0.5 rounded-full text-xs font-medium",
-                    typeof item.badge === "number" ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent",
-                  )}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* Bottom Actions */}
-        <div className="pt-6 border-t border-border/50 space-y-2">
-          <ThemeToggle />
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200">
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Log Out</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile Sidebar */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="lg:hidden fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
-              onClick={() => setSidebarOpen(false)}
-            />
-            <motion.aside
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="lg:hidden fixed left-0 top-0 bottom-0 w-72 bg-card border-r border-border/50 p-6 z-50"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <Link href="/" className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
-                    <span className="text-primary-foreground font-bold text-lg">K</span>
-                  </div>
-                  <span className="text-xl font-bold text-foreground">Kliniq</span>
-                </Link>
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="p-2 rounded-xl hover:bg-secondary transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {/* Mobile Role Switcher */}
-              <div className="relative p-1.5 bg-secondary/50 rounded-2xl mb-6">
-                <div className="grid grid-cols-2 gap-1">
-                  {(["nurse", "doctor"] as UserRole[]).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setRole(r)}
-                      className={cn(
-                        "relative px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                        role === r ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {role === r && (
-                        <motion.div
-                          layoutId="mobileRoleIndicator"
-                          className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-xl"
-                        />
-                      )}
-                      <span className="relative capitalize">{r}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <nav className="space-y-2">
-                {navItems.map((item) => (
-                  <button
-                    key={item.label}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                      item.active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground",
-                    )}
-                  >
-                    <item.icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                ))}
-              </nav>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      <ClinicianSidebar activePath="/clinician" role={role} onRoleChange={setRole} sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 px-6 py-4">
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden p-2 rounded-xl hover:bg-secondary transition-colors"
@@ -417,11 +242,11 @@ export default function ClinicianDashboard() {
                 <Menu className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-foreground">
-                  {role === "nurse" ? "Triage Dashboard" : "Clinical Queries"}
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-foreground">
+                  {role === "nurse" ? "Patient Care" : "Medical Review"}
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                  {role === "nurse" ? "Review and process patient submissions" : "Respond to escalated medical queries"}
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+                  {role === "nurse" ? "Review and coordinate patient care" : "Respond to escalated medical queries"}
                 </p>
               </div>
             </div>
@@ -437,9 +262,9 @@ export default function ClinicianDashboard() {
           </div>
         </header>
 
-        <div className="flex-1 p-6 overflow-y-auto">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
             {stats[role].map((stat, index) => (
               <motion.div
                 key={stat.label}
@@ -508,212 +333,212 @@ export default function ClinicianDashboard() {
                 <AnimatePresence mode="popLayout">
                   {role === "nurse"
                     ? filteredCases.map((triageCase, index) => (
-                        <motion.div
-                          key={triageCase.id}
-                          layout
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ delay: index * 0.05 }}
-                          className={cn(
-                            "group relative p-5 rounded-2xl bg-card border transition-all duration-300 cursor-pointer",
-                            selectedCase === triageCase.id
-                              ? "border-primary shadow-lg shadow-primary/10"
-                              : "border-border/50 hover:border-primary/30 hover:shadow-md",
-                          )}
-                          onClick={() => setSelectedCase(triageCase.id === selectedCase ? null : triageCase.id)}
-                        >
-                          {triageCase.urgency === "high" && (
-                            <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
-                          )}
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div
-                                className={cn(
-                                  "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0",
-                                  triageCase.urgency === "high"
-                                    ? "bg-red-500/20 text-red-500"
-                                    : "bg-primary/10 text-primary",
-                                )}
-                              >
-                                {triageCase.patientName
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-semibold text-foreground">{triageCase.patientName}</h3>
-                                  <span className="text-xs text-muted-foreground">{triageCase.patientId}</span>
-                                  <span
-                                    className={cn(
-                                      "px-2 py-0.5 rounded-full text-xs font-medium border",
-                                      urgencyStyles[triageCase.urgency],
-                                    )}
-                                  >
-                                    {triageCase.urgency}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{triageCase.symptoms}</p>
-                                <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {triageCase.duration}
-                                  </span>
-                                  <span>{triageCase.language}</span>
-                                  <span>{triageCase.submittedAt}</span>
-                                </div>
-                              </div>
+                      <motion.div
+                        key={triageCase.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={cn(
+                          "group relative p-5 rounded-2xl bg-card border transition-all duration-300 cursor-pointer",
+                          selectedCase === triageCase.id
+                            ? "border-primary shadow-lg shadow-primary/10"
+                            : "border-border/50 hover:border-primary/30 hover:shadow-md",
+                        )}
+                        onClick={() => setSelectedCase(triageCase.id === selectedCase ? null : triageCase.id)}
+                      >
+                        {triageCase.urgency === "high" && (
+                          <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
+                        )}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1">
+                            <div
+                              className={cn(
+                                "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0",
+                                triageCase.urgency === "high"
+                                  ? "bg-red-500/20 text-red-500"
+                                  : "bg-primary/10 text-primary",
+                              )}
+                            >
+                              {triageCase.patientName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Link
-                                href={`/clinician/patient/${triageCase.patientId}`}
-                                className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Link>
-                              <button className="p-2 rounded-xl hover:bg-secondary text-muted-foreground transition-colors">
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-foreground">{triageCase.patientName}</h3>
+                                <span className="text-xs text-muted-foreground">{triageCase.patientId}</span>
+                                <span
+                                  className={cn(
+                                    "px-2 py-0.5 rounded-full text-xs font-medium border",
+                                    urgencyStyles[triageCase.urgency],
+                                  )}
+                                >
+                                  {triageCase.urgency}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{triageCase.symptoms}</p>
+                              <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {triageCase.duration}
+                                </span>
+                                <span>{triageCase.language}</span>
+                                <span>{triageCase.submittedAt}</span>
+                              </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Link
+                              href={`/clinician/patient/${triageCase.patientId}`}
+                              className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                            <button className="p-2 rounded-xl hover:bg-secondary text-muted-foreground transition-colors">
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
 
-                          {/* Expandable AI Summary */}
-                          <AnimatePresence>
-                            {selectedCase === triageCase.id && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="pt-4 mt-4 border-t border-border/50">
-                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
-                                    <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                                    <div>
-                                      <p className="text-xs font-medium text-primary mb-1">AI Summary</p>
-                                      <p className="text-sm text-foreground">{triageCase.aiSummary}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-3">
-                                    <Button size="sm" className="flex-1 rounded-xl">
-                                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                                      Verify & Close
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="flex-1 rounded-xl bg-transparent">
-                                      <AlertTriangle className="w-4 h-4 mr-2" />
-                                      Escalate to Doctor
-                                    </Button>
+                        {/* Expandable AI Summary */}
+                        <AnimatePresence>
+                          {selectedCase === triageCase.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-4 mt-4 border-t border-border/50">
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
+                                  <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs font-medium text-primary mb-1">AI Summary</p>
+                                    <p className="text-sm text-foreground">{triageCase.aiSummary}</p>
                                   </div>
                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.div>
-                      ))
+                                <div className="flex items-center gap-2 mt-3">
+                                  <Button size="sm" className="flex-1 rounded-xl">
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    Verify & Close
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="flex-1 rounded-xl bg-transparent">
+                                    <AlertTriangle className="w-4 h-4 mr-2" />
+                                    Escalate to Doctor
+                                  </Button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    ))
                     : filteredQueries.map((query, index) => (
-                        <motion.div
-                          key={query.id}
-                          layout
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ delay: index * 0.05 }}
-                          className={cn(
-                            "group relative p-5 rounded-2xl bg-card border transition-all duration-300 cursor-pointer",
-                            selectedCase === query.id
-                              ? "border-primary shadow-lg shadow-primary/10"
-                              : "border-border/50 hover:border-primary/30 hover:shadow-md",
-                          )}
-                          onClick={() => setSelectedCase(query.id === selectedCase ? null : query.id)}
-                        >
-                          {query.urgency === "high" && (
-                            <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
-                          )}
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4 flex-1">
-                              <div
-                                className={cn(
-                                  "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0",
-                                  query.urgency === "high"
-                                    ? "bg-red-500/20 text-red-500"
-                                    : "bg-primary/10 text-primary",
-                                )}
-                              >
-                                {query.patientName
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-semibold text-foreground">{query.patientName}</h3>
-                                  <span className="text-xs text-muted-foreground">{query.patientId}</span>
-                                  <span
-                                    className={cn(
-                                      "px-2 py-0.5 rounded-full text-xs font-medium border",
-                                      urgencyStyles[query.urgency],
-                                    )}
-                                  >
-                                    {query.urgency}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-foreground mt-1 font-medium">"{query.question}"</p>
-                                {query.nurseNote && (
-                                  <p className="text-xs text-muted-foreground mt-1 italic">
-                                    Nurse note: {query.nurseNote}
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-2">{query.submittedAt}</p>
-                              </div>
+                      <motion.div
+                        key={query.id}
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={cn(
+                          "group relative p-5 rounded-2xl bg-card border transition-all duration-300 cursor-pointer",
+                          selectedCase === query.id
+                            ? "border-primary shadow-lg shadow-primary/10"
+                            : "border-border/50 hover:border-primary/30 hover:shadow-md",
+                        )}
+                        onClick={() => setSelectedCase(query.id === selectedCase ? null : query.id)}
+                      >
+                        {query.urgency === "high" && (
+                          <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
+                        )}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1">
+                            <div
+                              className={cn(
+                                "w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg shrink-0",
+                                query.urgency === "high"
+                                  ? "bg-red-500/20 text-red-500"
+                                  : "bg-primary/10 text-primary",
+                              )}
+                            >
+                              {query.patientName
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Link
-                                href={`/clinician/patient/${query.patientId}`}
-                                className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Link>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-foreground">{query.patientName}</h3>
+                                <span className="text-xs text-muted-foreground">{query.patientId}</span>
+                                <span
+                                  className={cn(
+                                    "px-2 py-0.5 rounded-full text-xs font-medium border",
+                                    urgencyStyles[query.urgency],
+                                  )}
+                                >
+                                  {query.urgency}
+                                </span>
+                              </div>
+                              <p className="text-sm text-foreground mt-1 font-medium">"{query.question}"</p>
+                              {query.nurseNote && (
+                                <p className="text-xs text-muted-foreground mt-1 italic">
+                                  Nurse note: {query.nurseNote}
+                                </p>
+                              )}
+                              <p className="text-xs text-muted-foreground mt-2">{query.submittedAt}</p>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Link
+                              href={`/clinician/patient/${query.patientId}`}
+                              className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        </div>
 
-                          {/* Expandable AI Draft */}
-                          <AnimatePresence>
-                            {selectedCase === query.id && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="pt-4 mt-4 border-t border-border/50">
-                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
-                                    <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                                    <div>
-                                      <p className="text-xs font-medium text-primary mb-1">AI Suggested Response</p>
-                                      <p className="text-sm text-foreground">{query.aiDraft}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-3">
-                                    <Button size="sm" className="flex-1 rounded-xl">
-                                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                                      Approve & Send
-                                    </Button>
-                                    <Button size="sm" variant="outline" className="flex-1 rounded-xl bg-transparent">
-                                      <FileText className="w-4 h-4 mr-2" />
-                                      Edit Response
-                                    </Button>
+                        {/* Expandable AI Draft */}
+                        <AnimatePresence>
+                          {selectedCase === query.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-4 mt-4 border-t border-border/50">
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
+                                  <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs font-medium text-primary mb-1">AI Suggested Response</p>
+                                    <p className="text-sm text-foreground">{query.aiDraft}</p>
                                   </div>
                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </motion.div>
-                      ))}
+                                <div className="flex items-center gap-2 mt-3">
+                                  <Button size="sm" className="flex-1 rounded-xl">
+                                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                                    Approve & Send
+                                  </Button>
+                                  <Button size="sm" variant="outline" className="flex-1 rounded-xl bg-transparent">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Edit Response
+                                  </Button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    ))}
                 </AnimatePresence>
               </div>
             </div>
@@ -821,6 +646,6 @@ export default function ClinicianDashboard() {
           </div>
         </div>
       </main>
-    </div>
+    </div >
   )
 }

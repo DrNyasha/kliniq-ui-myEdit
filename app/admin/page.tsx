@@ -3,11 +3,13 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
+import { AdminSidebar } from "@/components/admin-sidebar"
 import {
   Building2,
   Users,
@@ -198,14 +200,14 @@ const statusLabels = {
 }
 
 const sidebarLinks = [
-  { icon: Home, label: "Overview", active: true },
-  { icon: Users, label: "Patients" },
-  { icon: UserCheck, label: "Clinicians" },
-  { icon: Calendar, label: "Appointments" },
-  { icon: BarChart3, label: "Analytics" },
-  { icon: CreditCard, label: "Billing" },
-  { icon: FileText, label: "Reports" },
-  { icon: Settings, label: "Settings" },
+  { icon: Home, label: "Overview", href: "/admin", active: true },
+  { icon: Users, label: "Patients", href: "/admin/patients" },
+  { icon: UserCheck, label: "Clinicians", href: "/admin/clinicians" },
+  { icon: Calendar, label: "Appointments", href: "/admin/appointments" },
+  { icon: BarChart3, label: "Analytics", href: "/admin/analytics" },
+  { icon: CreditCard, label: "Billing", href: "/admin/billing" },
+  { icon: FileText, label: "Reports", href: "/admin/reports" },
+  { icon: Settings, label: "Settings", href: "/admin/settings" },
 ]
 
 export default function AdminDashboard() {
@@ -235,107 +237,7 @@ export default function AdminDashboard() {
         <div className="absolute bottom-0 left-1/3 w-[600px] h-[600px] bg-gradient-to-tr from-kliniq-cyan/8 via-primary/5 to-transparent rounded-full blur-3xl" />
       </div>
 
-      {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ x: sidebarOpen ? 0 : "-100%" }}
-        className={cn(
-          "fixed lg:relative lg:translate-x-0 inset-y-0 left-0 z-50 w-72 bg-card/80 backdrop-blur-xl border-r border-border/50 flex flex-col transition-transform lg:transition-none",
-          "lg:flex",
-        )}
-      >
-        {/* Logo */}
-        <div className="p-6 border-b border-border/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-                <Sparkles className="w-5 h-5 text-primary-foreground" />
-                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary to-accent animate-pulse-glow opacity-50" />
-              </div>
-              <div>
-                <span className="text-xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                  Kliniq
-                </span>
-                <p className="text-xs text-muted-foreground">Admin Portal</p>
-              </div>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 rounded-xl hover:bg-secondary">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Hospital Info */}
-        <div className="p-4 mx-4 mt-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-foreground truncate">Lagos General Hospital</h3>
-              <p className="text-xs text-muted-foreground">Premium Plan</p>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex-1 h-2 rounded-full bg-secondary overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: "75%" }}
-                transition={{ duration: 1, delay: 0.5 }}
-                className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
-              />
-            </div>
-            <span className="text-xs text-muted-foreground">75%</span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">21 days until renewal</p>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          {sidebarLinks.map((link) => (
-            <button
-              key={link.label}
-              className={cn(
-                "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
-                link.active
-                  ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary border border-primary/20"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/50",
-              )}
-            >
-              <link.icon className="w-5 h-5" />
-              {link.label}
-              {link.active && (
-                <motion.div layoutId="activeSidebarIndicator" className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-border/50 space-y-1">
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors">
-            <HelpCircle className="w-5 h-5" />
-            Help & Support
-          </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
-            <LogOut className="w-5 h-5" />
-            Log Out
-          </button>
-        </div>
-      </motion.aside>
+      <AdminSidebar activePath="/admin" sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -351,8 +253,8 @@ export default function AdminDashboard() {
                   <Menu className="w-5 h-5" />
                 </button>
                 <div>
-                  <h1 className="text-xl font-bold text-foreground">Dashboard Overview</h1>
-                  <p className="text-sm text-muted-foreground">Welcome back, Administrator</p>
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground">Dashboard Overview</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Welcome back, Administrator</p>
                 </div>
               </div>
 
@@ -373,7 +275,9 @@ export default function AdminDashboard() {
                   <ChevronDown className="w-4 h-4" />
                 </button>
 
-                <ThemeToggle />
+                <div className="hidden md:block">
+                  <ThemeToggle />
+                </div>
 
                 <button className="relative p-2.5 rounded-xl hover:bg-secondary transition-colors">
                   <Bell className="w-5 h-5 text-muted-foreground" />
@@ -392,7 +296,7 @@ export default function AdminDashboard() {
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.title}
