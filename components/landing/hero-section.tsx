@@ -21,7 +21,7 @@ export function HeroSection() {
   }, [])
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+    <section className="relative min-h-screen flex items-center justify-center pt-16 overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Large organic blob - top right */}
@@ -58,7 +58,7 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-20">
+      <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-12">
         <div className="flex flex-col lg:flex-row items-center gap-16">
           {/* Left Content */}
           <div
@@ -79,12 +79,12 @@ export function HeroSection() {
                 </span>
               </span>
               <br />
-              <span className="relative inline-block mt-2">
+              <span className="relative inline-block">
                 <span className="text-foreground">language in </span>
-                <span className="relative inline-block min-w-[200px]">
+                <span className="inline-block min-w-[200px] align-baseline">
                   <span
                     key={currentLang}
-                    className="absolute left-0 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-slide-up"
+                    className="inline-block bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent animate-slide-up"
                   >
                     {languages[currentLang]}
                   </span>

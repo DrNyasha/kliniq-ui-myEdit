@@ -7,7 +7,7 @@ const benefits = ["Free 14-day trial", "No credit card required", "Full feature 
 
 export function CTASection() {
   return (
-    <section className="relative py-32 overflow-hidden">
+    <section className="relative py-16 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />

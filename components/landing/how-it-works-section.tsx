@@ -35,7 +35,7 @@ export function HowItWorksSection() {
   return (
     <section
       id="how-it-works"
-      className="relative py-32 bg-gradient-to-b from-background via-secondary/30 to-background overflow-hidden"
+      className="relative py-16 bg-gradient-to-b from-background via-secondary/30 to-background overflow-hidden"
     >
       {/* Background decorations */}
       <div className="absolute inset-0">
@@ -99,9 +99,8 @@ function StepCard({ step, index }: { step: (typeof steps)[0]; index: number }) {
   return (
     <div
       ref={cardRef}
-      className={`relative transition-all duration-700 ${
-        isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      }`}
+      className={`relative transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+        }`}
     >
       {/* Step Number */}
       <div className="relative z-10 mx-auto w-16 h-16 mb-6">
