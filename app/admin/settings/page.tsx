@@ -5,13 +5,14 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { AdminSidebar } from "@/components/admin-sidebar"
-import { Building2, Shield, Bell as BellIcon, ChevronRight, Menu } from "lucide-react"
+import { Building2, Shield, Bell as BellIcon, ChevronRight, Menu, Edit2 } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 
 export default function AdminSettingsPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
+    const [isEditingProfile, setIsEditingProfile] = useState(false)
     useEffect(() => setMounted(true), [])
     if (!mounted) return null
 
@@ -43,35 +44,50 @@ export default function AdminSettingsPage() {
                     <div className="max-w-4xl mx-auto space-y-6">
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                             className="p-6 rounded-3xl bg-card border border-border/50">
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                    <Building2 className="w-5 h-5 text-primary" />
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                        <Building2 className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-semibold text-foreground">Hospital Profile</h2>
+                                        <p className="text-sm text-muted-foreground">Update hospital information</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="text-lg font-semibold text-foreground">Hospital Profile</h2>
-                                    <p className="text-sm text-muted-foreground">Update hospital information</p>
-                                </div>
+                                {!isEditingProfile && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-xl"
+                                        onClick={() => setIsEditingProfile(true)}
+                                    >
+                                        <Edit2 className="w-4 h-4 mr-2" />
+                                        Edit
+                                    </Button>
+                                )}
                             </div>
                             <div className="grid gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Hospital Name</label>
-                                    <Input defaultValue="Lagos General Hospital" className="rounded-xl" />
+                                    <Input defaultValue="Lagos General Hospital" className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
                                 <div className="grid md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">Email</label>
-                                        <Input defaultValue="admin@lgh.ng" className="rounded-xl" />
+                                        <Input defaultValue="admin@lgh.ng" className="rounded-xl" disabled={!isEditingProfile} />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-2">Phone</label>
-                                        <Input defaultValue="+234 800 123 4567" className="rounded-xl" />
+                                        <Input defaultValue="+234 800 123 4567" className="rounded-xl" disabled={!isEditingProfile} />
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <Button variant="outline" className="rounded-xl bg-transparent">Cancel</Button>
-                                <Button className="rounded-xl bg-primary">Save Changes</Button>
-                            </div>
+                            {isEditingProfile && (
+                                <div className="flex justify-end gap-3 mt-6">
+                                    <Button variant="outline" className="rounded-xl bg-transparent" onClick={() => setIsEditingProfile(false)}>Cancel</Button>
+                                    <Button className="rounded-xl bg-primary" onClick={() => setIsEditingProfile(false)}>Save Changes</Button>
+                                </div>
+                            )}
                         </motion.div>
 
                         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}

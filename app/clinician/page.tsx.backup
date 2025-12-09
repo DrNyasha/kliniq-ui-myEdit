@@ -5,12 +5,12 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
 import { useToast } from "@/hooks/use-toast"
+import { Toaster } from "@/components/ui/toaster"
 import {
   Users,
   Clock,
@@ -37,7 +37,6 @@ import {
   Home,
   Calendar,
   Award,
-  Send,
 } from "lucide-react"
 
 type UserRole = "nurse" | "doctor"
@@ -193,8 +192,12 @@ export default function ClinicianDashboard() {
   const [role, setRole] = useState<UserRole>("nurse")
   const [activeFilter, setActiveFilter] = useState<"all" | "pending" | "urgent">("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCase, setSelectedCase] = useState<string | null>(null)
   const [triageCases, setTriageCases] = useState(mockTriageCases)
   const [queries, setQueries] = useState(mockEscalatedQueries)
+  const [nurseResponse, setNurseResponse] = useState<Record<string, string>>({})
+  const [showEscalateModal, setShowEscalateModal] = useState(false)
+  const [escalatingCaseId, setEscalatingCaseId] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -223,10 +226,65 @@ export default function ClinicianDashboard() {
     return true
   })
 
+  const handleVerifyAndClose = (caseId: string) => {
+    const triageCase = triageCases.find(c => c.id === caseId)
+    setTriageCases(triageCases.map(c =>
+      c.id === caseId ? { ...c, status: "resolved" as const } : c
+    ))
+    setSelectedCase(null)
+    toast({
+      title: "Triage Verified",
+      description: `${triageCase?.patientName}'s triage has been verified and closed. +5 points earned!`,
+    })
+  }
+
+  const handleEscalateToDoctor = (caseId: string) => {
+    const triageCase = triageCases.find(c => c.id === caseId)
+    setTriageCases(triageCases.map(c =>
+      c.id === caseId ? { ...c, status: "escalated" as const } : c
+    ))
+    setSelectedCase(null)
+    toast({
+      title: "Escalated to Doctor",
+      description: `${triageCase?.patientName}'s case has been escalated for medical review.`,
+      variant: "destructive",
+    })
+  }
+
+  const handleAcceptAIRecommendation = (caseId: string) => {
+    const triageCase = triageCases.find(c => c.id === caseId)
+    setTriageCases(triageCases.map(c =>
+      c.id === caseId ? { ...c, status: "resolved" as const } : c
+    ))
+    setSelectedCase(null)
+    toast({
+      title: "Response Sent",
+      description: `AI recommendation sent to ${triageCase?.patientName}. +10 points earned!`,
+    })
+  }
+
+  const handleSendQueryResponse = (queryId: string) => {
+    const query = queries.find(q => q.id === queryId)
+    setQueries(queries.map(q =>
+      q.id === queryId ? { ...q, status: "answered" as const } : q
+    ))
+    setSelectedCase(null)
+    toast({
+      title: "Response Sent",
+      description: `Your response to ${query?.patientName} has been sent. +10 points earned!`,
+    })
+  }
+
   const handleQuickAction = (action: string) => {
     switch (action) {
       case "View All Patients":
         window.location.href = "/clinician/patients"
+        break
+      case "Update Notes":
+        toast({
+          title: "Update Notes",
+          description: "Select a patient to update their medical notes.",
+        })
         break
       case "My Schedule":
         window.location.href = "/clinician/schedule"
@@ -354,8 +412,13 @@ export default function ClinicianDashboard() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: index * 0.05 }}
-                        className="group relative p-5 rounded-2xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 cursor-pointer"
-                        onClick={() => window.location.href = `/clinician/patient/${triageCase.patientId}`}
+                        className={cn(
+                          "group relative p-5 rounded-2xl bg-card border transition-all duration-300 cursor-pointer",
+                          selectedCase === triageCase.id
+                            ? "border-primary shadow-lg shadow-primary/10"
+                            : "border-border/50 hover:border-primary/30 hover:shadow-md",
+                        )}
+                        onClick={() => setSelectedCase(triageCase.id === selectedCase ? null : triageCase.id)}
                       >
                         {triageCase.urgency === "high" && (
                           <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
@@ -413,7 +476,68 @@ export default function ClinicianDashboard() {
                           </div>
                         </div>
 
-
+                        {/* Expandable AI Summary */}
+                        <AnimatePresence>
+                          {selectedCase === triageCase.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-4 mt-4 border-t border-border/50">
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
+                                  <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs font-medium text-primary mb-1">AI Summary</p>
+                                    <p className="text-sm text-foreground">{triageCase.aiSummary}</p>
+                                  </div>
+                                </div>
+                                {triageCase.aiRecommendation && (
+                                  <div className="flex items-start gap-3 p-3 rounded-xl bg-accent/5 mt-3">
+                                    <Sparkles className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                                    <div>
+                                      <p className="text-xs font-medium text-accent mb-1">AI Recommendation</p>
+                                      <p className="text-sm text-foreground">{triageCase.aiRecommendation}</p>
+                                    </div>
+                                  </div>
+                                )}
+                                {triageCase.status === "pending" && (
+                                  <div className="space-y-2 mt-3">
+                                    <Button
+                                      onClick={() => handleAcceptAIRecommendation(triageCase.id)}
+                                      size="sm"
+                                      className="w-full rounded-xl"
+                                    >
+                                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                                      Accept & Send AI Recommendation
+                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        onClick={() => handleVerifyAndClose(triageCase.id)}
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-1 rounded-xl bg-transparent"
+                                      >
+                                        Verify & Close
+                                      </Button>
+                                      <Button
+                                        onClick={() => handleEscalateToDoctor(triageCase.id)}
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex-1 rounded-xl bg-transparent"
+                                      >
+                                        <AlertTriangle className="w-4 h-4 mr-2" />
+                                        Escalate
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     ))
                     : filteredQueries.map((query, index) => (
@@ -424,8 +548,13 @@ export default function ClinicianDashboard() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: index * 0.05 }}
-                        className="group relative p-5 rounded-2xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 cursor-pointer"
-                        onClick={() => window.location.href = `/clinician/patient/${query.patientId}`}
+                        className={cn(
+                          "group relative p-5 rounded-2xl bg-card border transition-all duration-300 cursor-pointer",
+                          selectedCase === query.id
+                            ? "border-primary shadow-lg shadow-primary/10"
+                            : "border-border/50 hover:border-primary/30 hover:shadow-md",
+                        )}
+                        onClick={() => setSelectedCase(query.id === selectedCase ? null : query.id)}
                       >
                         {query.urgency === "high" && (
                           <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
@@ -478,6 +607,48 @@ export default function ClinicianDashboard() {
                           </div>
                         </div>
 
+                        {/* Expandable AI Draft */}
+                        <AnimatePresence>
+                          {selectedCase === query.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="pt-4 mt-4 border-t border-border/50">
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5">
+                                  <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                  <div>
+                                    <p className="text-xs font-medium text-primary mb-1">AI Suggested Response</p>
+                                    <p className="text-sm text-foreground">{query.aiDraft}</p>
+                                  </div>
+                                </div>
+                                {query.status === "pending" && (
+                                  <div className="flex items-center gap-2 mt-3">
+                                    <Button onClick={() => handleSendQueryResponse(query.id)} size="sm" className="flex-1 rounded-xl">
+                                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                                      Approve & Send
+                                    </Button>
+                                    <Button
+                                      onClick={() => toast({
+                                        title: "Edit Mode",
+                                        description: "You can now edit the AI-generated response before sending.",
+                                      })}
+                                      size="sm"
+                                      variant="outline"
+                                      className="flex-1 rounded-xl bg-transparent"
+                                    >
+                                      <FileText className="w-4 h-4 mr-2" />
+                                      Edit Response
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     ))}
                 </AnimatePresence>
@@ -544,6 +715,7 @@ export default function ClinicianDashboard() {
                 <div className="space-y-2">
                   {[
                     { icon: UserCheck, label: "View All Patients", color: "text-primary" },
+                    { icon: FileText, label: "Update Notes", color: "text-accent" },
                     { icon: Calendar, label: "My Schedule", color: "text-kliniq-cyan" },
                   ].map((action) => (
                     <button
@@ -587,7 +759,7 @@ export default function ClinicianDashboard() {
           </div>
         </div>
       </main>
-
+      <Toaster />
     </div >
   )
 }

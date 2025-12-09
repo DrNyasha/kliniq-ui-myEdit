@@ -27,6 +27,7 @@ import {
     Check,
     ChevronRight,
     Edit,
+    Edit2,
 } from "lucide-react"
 
 const languages = [
@@ -45,6 +46,7 @@ const linkedDoctors = [
 export default function SettingsPage() {
     const [mounted, setMounted] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const [isEditingProfile, setIsEditingProfile] = useState(false)
     const [selectedLanguage, setSelectedLanguage] = useState("yo")
     const [notifications, setNotifications] = useState({
         appointments: true,
@@ -92,19 +94,32 @@ export default function SettingsPage() {
                             animate={{ opacity: 1, y: 0 }}
                             className="p-6 rounded-3xl bg-card border border-border/50"
                         >
-                            <div className="flex items-center gap-3 mb-6">
-                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                                    <User className="w-5 h-5 text-primary" />
+                            <div className="flex items-center justify-between mb-6">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                                        <User className="w-5 h-5 text-primary" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-semibold text-foreground">Profile Information</h2>
+                                        <p className="text-sm text-muted-foreground">Update your personal details</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h2 className="text-lg font-semibold text-foreground">Profile Information</h2>
-                                    <p className="text-sm text-muted-foreground">Update your personal details</p>
-                                </div>
+                                {!isEditingProfile && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-xl"
+                                        onClick={() => setIsEditingProfile(true)}
+                                    >
+                                        <Edit2 className="w-4 h-4 mr-2" />
+                                        Edit
+                                    </Button>
+                                )}
                             </div>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Full Name</label>
-                                    <Input defaultValue="Adebayo Ogundimu" className="rounded-xl" />
+                                    <Input defaultValue="Adebayo Ogundimu" className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Patient ID</label>
@@ -112,25 +127,27 @@ export default function SettingsPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Email</label>
-                                    <Input type="email" defaultValue="adebayo@example.com" className="rounded-xl" />
+                                    <Input type="email" defaultValue="adebayo@example.com" className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Phone Number</label>
-                                    <Input type="tel" defaultValue="+234 801 234 5678" className="rounded-xl" />
+                                    <Input type="tel" defaultValue="+234 801 234 5678" className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-foreground mb-2">Location</label>
-                                    <Input defaultValue="Lagos, Nigeria" className="rounded-xl" />
+                                    <Input defaultValue="Lagos, Nigeria" className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
                             </div>
-                            <div className="mt-6 flex justify-end gap-3">
-                                <Button variant="outline" className="rounded-xl bg-transparent">
-                                    Cancel
-                                </Button>
-                                <Button className="rounded-xl bg-gradient-to-r from-primary to-primary/80">
-                                    Save Changes
-                                </Button>
-                            </div>
+                            {isEditingProfile && (
+                                <div className="mt-6 flex justify-end gap-3">
+                                    <Button variant="outline" className="rounded-xl bg-transparent" onClick={() => setIsEditingProfile(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button className="rounded-xl bg-gradient-to-r from-primary to-primary/80" onClick={() => setIsEditingProfile(false)}>
+                                        Save Changes
+                                    </Button>
+                                </div>
+                            )}
                         </motion.div>
 
                         {/* Language Preferences */}

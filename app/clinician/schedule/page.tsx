@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
+import { useToast } from "@/hooks/use-toast"
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -24,6 +27,7 @@ import {
     Video,
     User,
     Edit,
+    Trash,
 } from "lucide-react"
 
 const daysOfWeek = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -51,14 +55,113 @@ const mockAppointments: Record<string, Appointment[]> = {
     ],
 }
 
+const mockPatients = [
+    "Adebayo Ogundimu",
+    "Chioma Eze",
+    "Ibrahim Musa",
+    "Funke Adeoye",
+    "Amara Nwosu",
+    "Oluwaseun Adeyemi",
+    "Chidi Okafor",
+]
+
 export default function SchedulePage() {
     const [mounted, setMounted] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const [currentWeek, setCurrentWeek] = useState("Dec 2-8, 2025")
+    const [currentWeekOffset, setCurrentWeekOffset] = useState(0)
+    const [showAppointmentDetails, setShowAppointmentDetails] = useState(false)
+    const [showAddSlot, setShowAddSlot] = useState(false)
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+    const [appointmentDate, setAppointmentDate] = useState("")
+    const [appointmentTime, setAppointmentTime] = useState("")
+    const [appointmentDuration, setAppointmentDuration] = useState("")
+    const [appointmentType, setAppointmentType] = useState<"in-person" | "video">("in-person")
+    const [newSlot, setNewSlot] = useState({ patient: "", date: "", time: "", duration: "30", type: "in-person" as "in-person" | "video" })
+    const [patientSuggestions, setPatientSuggestions] = useState<string[]>([])
+    const [showSuggestions, setShowSuggestions] = useState(false)
+    const { toast } = useToast()
 
     useEffect(() => {
         setMounted(true)
     }, [])
+
+    const getWeekString = () => {
+        const baseDate = new Date(2025, 11, 2) // Dec 2, 2025
+        baseDate.setDate(baseDate.getDate() + (currentWeekOffset * 7))
+        const endDate = new Date(baseDate)
+        endDate.setDate(endDate.getDate() + 6)
+        return `${baseDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}-${endDate.getDate()}, ${baseDate.getFullYear()}`
+    }
+
+    const handleAddSlot = () => {
+        setShowAddSlot(true)
+    }
+
+    const handleSlotClick = (day: string, time: string, appointment?: Appointment) => {
+        if (appointment) {
+            setSelectedAppointment(appointment)
+            setAppointmentDate(day)
+            setAppointmentTime(time)
+            setAppointmentDuration(appointment.duration.toString())
+            setAppointmentType(appointment.type)
+            setShowAppointmentDetails(true)
+        } else {
+            setNewSlot({ ...newSlot, date: day, time })
+            setShowAddSlot(true)
+        }
+    }
+
+    const handlePatientSearch = (value: string) => {
+        setNewSlot({ ...newSlot, patient: value })
+        if (value.trim()) {
+            const filtered = mockPatients.filter(p =>
+                p.toLowerCase().includes(value.toLowerCase())
+            )
+            setPatientSuggestions(filtered)
+            setShowSuggestions(true)
+        } else {
+            setShowSuggestions(false)
+        }
+    }
+
+    const handleSelectPatient = (patient: string) => {
+        setNewSlot({ ...newSlot, patient })
+        setShowSuggestions(false)
+    }
+
+    const handleSaveAppointment = () => {
+        toast({
+            title: "Appointment Updated",
+            description: `Appointment for ${selectedAppointment?.patient} updated successfully`,
+        })
+        setShowAppointmentDetails(false)
+    }
+
+    const handleDeleteAppointment = () => {
+        toast({
+            title: "Appointment Deleted",
+            description: `Appointment for ${selectedAppointment?.patient} has been cancelled`,
+            variant: "destructive",
+        })
+        setShowAppointmentDetails(false)
+    }
+
+    const handleCreateSlot = () => {
+        if (!newSlot.patient || !newSlot.date || !newSlot.time) {
+            toast({
+                title: "Missing Information",
+                description: "Please fill in all required fields.",
+                variant: "destructive",
+            })
+            return
+        }
+        toast({
+            title: "Appointment Created",
+            description: `Appointment with ${newSlot.patient} scheduled for ${newSlot.date} at ${newSlot.time}`,
+        })
+        setShowAddSlot(false)
+        setNewSlot({ patient: "", date: "", time: "", duration: "30", type: "in-person" })
+    }
 
     if (!mounted) return null
 
@@ -79,7 +182,7 @@ export default function SchedulePage() {
                             </div>
                         </div>
                         <div className="flex items-center gap-3">
-                            <Button className="bg-gradient-to-r from-primary to-primary/80">
+                            <Button onClick={handleAddSlot} className="bg-gradient-to-r from-primary to-primary/80">
                                 <Plus className="w-4 h-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Add Slot</span>
                             </Button>
@@ -94,11 +197,17 @@ export default function SchedulePage() {
                 <div className="flex-1 p-6 overflow-y-auto">
                     {/* Week Navigator */}
                     <div className="flex items-center justify-between mb-6">
-                        <button className="p-2 rounded-xl hover:bg-secondary transition-colors">
+                        <button
+                            onClick={() => setCurrentWeekOffset(prev => prev - 1)}
+                            className="p-2 rounded-xl hover:bg-secondary transition-colors"
+                        >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <h2 className="text-lg font-semibold text-foreground">{currentWeek}</h2>
-                        <button className="p-2 rounded-xl hover:bg-secondary transition-colors">
+                        <h2 className="text-lg font-semibold text-foreground">{getWeekString()}</h2>
+                        <button
+                            onClick={() => setCurrentWeekOffset(prev => prev + 1)}
+                            className="p-2 rounded-xl hover:bg-secondary transition-colors"
+                        >
                             <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
@@ -130,6 +239,7 @@ export default function SchedulePage() {
                                         return (
                                             <div
                                                 key={day}
+                                                onClick={() => handleSlotClick(day, time, appt)}
                                                 className="relative p-2 border-r border-b border-border/50 last:border-r-0 min-h-[60px] hover:bg-secondary/30 transition-colors cursor-pointer group"
                                             >
                                                 {appt && (
@@ -181,6 +291,220 @@ export default function SchedulePage() {
                     </div>
                 </div>
             </main>
-        </div>
+
+            {/* Appointment Details Modal */}
+            <AnimatePresence>
+                {showAppointmentDetails && selectedAppointment && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowAppointmentDetails(false)}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-card rounded-3xl max-w-md w-full p-6 shadow-xl border border-border/50"
+                        >
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <h3 className="text-2xl font-bold text-foreground mb-2">Appointment Details</h3>
+                                    <p className="text-muted-foreground">Edit appointment date and time</p>
+                                </div>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="rounded-xl"
+                                    onClick={handleDeleteAppointment}
+                                >
+                                    <Trash className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Patient</label>
+                                    <Input
+                                        value={selectedAppointment.patient}
+                                        disabled
+                                        className="rounded-xl bg-secondary/30 border-border/50"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Day</label>
+                                    <select
+                                        value={appointmentDate}
+                                        onChange={(e) => setAppointmentDate(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        {daysOfWeek.map(day => (
+                                            <option key={day} value={day}>{day}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Time</label>
+                                    <select
+                                        value={appointmentTime}
+                                        onChange={(e) => setAppointmentTime(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        {timeSlots.map(time => (
+                                            <option key={time} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Duration (minutes)</label>
+                                    <select
+                                        value={appointmentDuration}
+                                        onChange={(e) => setAppointmentDuration(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="30">30 minutes</option>
+                                        <option value="45">45 minutes</option>
+                                        <option value="60">60 minutes</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Appointment Type</label>
+                                    <select
+                                        value={appointmentType}
+                                        onChange={(e) => setAppointmentType(e.target.value as "in-person" | "video")}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="in-person">In-Person</option>
+                                        <option value="video">Video Call</option>
+                                    </select>
+                                </div>
+                                <div className="flex gap-3 mt-6">
+                                    <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowAppointmentDetails(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button className="flex-1 rounded-xl bg-gradient-to-r from-primary to-primary/80" onClick={handleSaveAppointment}>
+                                        <Edit className="w-4 h-4 mr-2" />
+                                        Save Changes
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Add Slot Modal */}
+            <AnimatePresence>
+                {showAddSlot && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowAddSlot(false)}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-card rounded-3xl max-w-md w-full p-6 shadow-xl border border-border/50"
+                        >
+                            <h3 className="text-2xl font-bold text-foreground mb-2">Create Appointment</h3>
+                            <p className="text-muted-foreground mb-6">Schedule a new appointment with a patient</p>
+
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Patient Name</label>
+                                    <div className="relative">
+                                        <Input
+                                            placeholder="Enter patient name..."
+                                            value={newSlot.patient}
+                                            onChange={(e) => handlePatientSearch(e.target.value)}
+                                            onFocus={() => newSlot.patient && setShowSuggestions(true)}
+                                            className="rounded-xl bg-secondary/30 border-border/50"
+                                        />
+                                        {showSuggestions && patientSuggestions.length > 0 && (
+                                            <div className="absolute z-10 w-full mt-2 bg-card border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                                {patientSuggestions.map((patient, index) => (
+                                                    <button
+                                                        key={index}
+                                                        onClick={() => handleSelectPatient(patient)}
+                                                        className="w-full text-left px-4 py-2 hover:bg-secondary transition-colors text-sm text-foreground"
+                                                    >
+                                                        {patient}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Day</label>
+                                    <select
+                                        value={newSlot.date}
+                                        onChange={(e) => setNewSlot({ ...newSlot, date: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="">Select a day</option>
+                                        {daysOfWeek.map(day => (
+                                            <option key={day} value={day}>{day}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Time</label>
+                                    <select
+                                        value={newSlot.time}
+                                        onChange={(e) => setNewSlot({ ...newSlot, time: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="">Select a time</option>
+                                        {timeSlots.map(time => (
+                                            <option key={time} value={time}>{time}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Duration (minutes)</label>
+                                    <select
+                                        value={newSlot.duration}
+                                        onChange={(e) => setNewSlot({ ...newSlot, duration: e.target.value })}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="30">30 minutes</option>
+                                        <option value="45">45 minutes</option>
+                                        <option value="60">60 minutes</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-foreground mb-2 block">Appointment Type</label>
+                                    <select
+                                        value={newSlot.type}
+                                        onChange={(e) => setNewSlot({ ...newSlot, type: e.target.value as "in-person" | "video" })}
+                                        className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                                    >
+                                        <option value="in-person">In-Person</option>
+                                        <option value="video">Video Call</option>
+                                    </select>
+                                </div>
+                                <div className="flex gap-3 mt-6">
+                                    <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowAddSlot(false)}>
+                                        Cancel
+                                    </Button>
+                                    <Button className="flex-1 rounded-xl bg-gradient-to-r from-primary to-primary/80" onClick={handleCreateSlot}>
+                                        <Plus className="w-4 h-4 mr-2" />
+                                        Create Appointment
+                                    </Button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div >
     )
 }

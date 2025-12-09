@@ -2,11 +2,12 @@ import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
-import { Home, Users, Calendar, Award, Settings, LogOut, Star, X } from "lucide-react"
+import { Home, Users, Calendar, Award, Settings, LogOut, Star, X, MessageSquare } from "lucide-react"
 
 const navItems = [
     { icon: Home, label: "Dashboard", href: "/clinician" },
     { icon: Users, label: "Patients", href: "/clinician/patients" },
+    { icon: MessageSquare, label: "Messages", href: "/clinician/messages" },
     { icon: Calendar, label: "Schedule", href: "/clinician/schedule" },
     { icon: Award, label: "Points", href: "/clinician/points", badge: "New" },
     { icon: Settings, label: "Settings", href: "/clinician/settings" },

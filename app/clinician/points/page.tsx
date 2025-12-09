@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
+import { useToast } from "@/hooks/use-toast"
 import {
     Award,
     Bell,
@@ -54,10 +55,25 @@ const rewards = [
 export default function PointsPage() {
     const [mounted, setMounted] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
+    const { toast } = useToast()
 
     useEffect(() => {
         setMounted(true)
     }, [])
+
+    const handleRewardClick = (reward: typeof rewards[0]) => {
+        if (reward.unlocked) {
+            toast({
+                title: `${reward.title} Active`,
+                description: `You're already enjoying this reward!`,
+            })
+        } else {
+            toast({
+                title: `${reward.title} Locked`,
+                description: `Earn ${reward.points - pointsData.current} more points to unlock this reward.`,
+            })
+        }
+    }
 
     if (!mounted) return null
 
@@ -222,11 +238,12 @@ export default function PointsPage() {
                                 {rewards.map((reward) => (
                                     <div
                                         key={reward.id}
+                                        onClick={() => handleRewardClick(reward)}
                                         className={cn(
-                                            "p-5 rounded-2xl border-2 transition-all",
+                                            "p-5 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md",
                                             reward.unlocked
-                                                ? "bg-green-500/5 border-green-500/30"
-                                                : "bg-secondary/20 border-border/50"
+                                                ? "bg-green-500/5 border-green-500/30 hover:border-green-500/50"
+                                                : "bg-secondary/20 border-border/50 hover:border-primary/30"
                                         )}
                                     >
                                         <div className="flex items-start justify-between mb-3">

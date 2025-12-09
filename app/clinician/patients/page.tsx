@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
+import { useToast } from "@/hooks/use-toast"
 import {
     Users,
     Clock,
@@ -98,6 +99,7 @@ export default function PatientsPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "completed">("all")
+    const { toast } = useToast()
 
     useEffect(() => {
         setMounted(true)
@@ -235,7 +237,12 @@ export default function PatientsPage() {
                                                     View Details
                                                 </Button>
                                             </Link>
-                                            <Button size="sm" variant="outline" className="rounded-xl bg-transparent">
+                                            <Button
+                                                onClick={() => window.location.href = '/clinician/messages'}
+                                                size="sm"
+                                                variant="outline"
+                                                className="rounded-xl bg-transparent"
+                                            >
                                                 <MessageSquare className="w-4 h-4" />
                                             </Button>
                                         </div>
