@@ -1,6 +1,10 @@
+"use client"
+
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
 import {
     Building2,
     Home,
@@ -36,6 +40,14 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ activePath, sidebarOpen = false, onClose }: AdminSidebarProps) {
+    const router = useRouter()
+    const { logout } = useAuth()
+
+    const handleLogout = () => {
+        logout()
+        router.push("/auth")
+    }
+
     const SidebarContent = () => (
         <>
             {/* Logo */}
@@ -112,7 +124,10 @@ export function AdminSidebar({ activePath, sidebarOpen = false, onClose }: Admin
                     <HelpCircle className="w-5 h-5" />
                     Help & Support
                 </button>
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                >
                     <LogOut className="w-5 h-5" />
                     Log Out
                 </button>

@@ -129,15 +129,9 @@ function AuthContent() {
           description: "Please check your email to verify your account.",
         })
 
-        // Switch to login mode after successful signup
-        setMode("login")
-        setFormData(prev => ({
-          ...prev,
-          fullName: "",
-          password: "",
-          confirmPassword: "",
-        }))
-        setSelectedRole(null)
+        // Redirect to verification page with email
+        const encodedEmail = encodeURIComponent(formData.email)
+        router.push(`/auth/verify?email=${encodedEmail}`)
       }
     } catch (err) {
       if (err instanceof ApiError) {

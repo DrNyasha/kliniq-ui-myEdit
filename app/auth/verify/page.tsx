@@ -74,7 +74,7 @@ function VerifyContent() {
             setTimeout(() => {
                 switch (response.user.role) {
                     case "patient":
-                        router.push("/dashboard")
+                        router.push("/onboarding")
                         break
                     case "clinician":
                         router.push("/clinician")
@@ -83,7 +83,7 @@ function VerifyContent() {
                         router.push("/admin")
                         break
                     default:
-                        router.push("/dashboard")
+                        router.push("/onboarding")
                 }
             }, 2000)
         } catch (err) {

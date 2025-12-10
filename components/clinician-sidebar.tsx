@@ -1,9 +1,11 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
 import { Home, Users, Calendar, Award, Settings, LogOut, Star, X, MessageSquare, ClipboardList } from "lucide-react"
 import { useClinicianRole } from "@/contexts/clinician-role-context"
 
@@ -38,9 +40,16 @@ export function ClinicianSidebar({
     sidebarOpen = false,
     onClose
 }: ClinicianSidebarProps) {
+    const router = useRouter()
+    const { logout } = useAuth()
     const { role, setRole, isLoading } = useClinicianRole()
     const navItems = role === "nurse" ? nurseNavItems : doctorNavItems
     const patientBadge = role === "nurse" ? 12 : 7
+
+    const handleLogout = () => {
+        logout()
+        router.push("/auth")
+    }
 
     const SidebarContent = ({ layoutId }: { layoutId: string }) => (
         <>
@@ -143,7 +152,10 @@ export function ClinicianSidebar({
             {/* Bottom Actions */}
             <div className="pt-6 border-t border-border/50 space-y-2">
                 <ThemeToggle />
-                <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200">
+                <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+                >
                     <LogOut className="w-5 h-5" />
                     <span className="font-medium">Log Out</span>
                 </button>
