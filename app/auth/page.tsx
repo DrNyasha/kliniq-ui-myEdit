@@ -3,13 +3,17 @@
 import type React from "react"
 
 import { useState, useEffect, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { useToast } from "@/hooks/use-toast"
+import { useAuth, getRedirectPath } from "@/contexts/auth-context"
+import { SignupRole } from "@/lib/auth-api"
+import { ApiError } from "@/lib/api-client"
 import {
   Eye,
   EyeOff,
@@ -26,9 +30,9 @@ import {
 import { cn } from "@/lib/utils"
 
 type AuthMode = "login" | "register"
-type UserRole = "patient" | "nurse" | "doctor" | "admin"
+type UserRoleType = "patient" | "nurse" | "doctor" | "admin"
 
-const roles: { id: UserRole; label: string; icon: React.ReactNode; description: string }[] = [
+const roles: { id: UserRoleType; label: string; icon: React.ReactNode; description: string }[] = [
   { id: "patient", label: "Patient", icon: <Heart className="w-6 h-6" />, description: "Get care in your language" },
   { id: "nurse", label: "Nurse", icon: <Users className="w-6 h-6" />, description: "Manage patient triage" },
   { id: "doctor", label: "Doctor", icon: <Stethoscope className="w-6 h-6" />, description: "Review & verify cases" },
@@ -42,11 +46,23 @@ const roles: { id: UserRole; label: string; icon: React.ReactNode; description: 
 
 function AuthContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { toast } = useToast()
+  const { login, signup, isAuthenticated, user, isLoading: authLoading } = useAuth()
+
   const [mode, setMode] = useState<AuthMode>("login")
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
+  const [selectedRole, setSelectedRole] = useState<UserRoleType | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [mounted, setMounted] = useState(false)
+
+  // Form state
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -56,12 +72,90 @@ function AuthContent() {
     }
   }, [searchParams])
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirectPath = getRedirectPath(user)
+      router.push(redirectPath)
+    }
+  }, [isAuthenticated, user, router])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsLoading(false)
+
+    try {
+      if (mode === "login") {
+        await login({
+          email: formData.email,
+          password: formData.password,
+        })
+
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        })
+        // Redirect will happen automatically via useEffect
+      } else {
+        // Register
+        if (formData.password !== formData.confirmPassword) {
+          toast({
+            variant: "destructive",
+            title: "Passwords don't match",
+            description: "Please make sure your passwords match.",
+          })
+          setIsLoading(false)
+          return
+        }
+
+        await signup({
+          full_name: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+          password_confirm: formData.confirmPassword,
+          role: selectedRole as SignupRole,
+        })
+
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        })
+
+        // Switch to login mode after successful signup
+        setMode("login")
+        setFormData(prev => ({
+          ...prev,
+          fullName: "",
+          password: "",
+          confirmPassword: "",
+        }))
+        setSelectedRole(null)
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        toast({
+          variant: "destructive",
+          title: mode === "login" ? "Login failed" : "Registration failed",
+          description: err.message,
+        })
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "An unexpected error occurred. Please try again.",
+        })
+      }
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (!mounted) return null
@@ -248,15 +342,17 @@ function AuthContent() {
                   <form onSubmit={handleSubmit} className="space-y-5">
                     {mode === "register" && (
                       <div className="space-y-2">
-                        <Label htmlFor="name" className="text-foreground">
+                        <Label htmlFor="fullName" className="text-foreground">
                           Full Name
                         </Label>
                         <div className="relative">
                           <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                           <Input
-                            id="name"
+                            id="fullName"
                             type="text"
                             placeholder="Enter your full name"
+                            value={formData.fullName}
+                            onChange={handleInputChange}
                             className="pl-12 h-12 bg-secondary/30 border-border/50 rounded-xl focus:border-primary focus:ring-primary/20 transition-all duration-300"
                             required
                           />
@@ -274,6 +370,8 @@ function AuthContent() {
                           id="email"
                           type="email"
                           placeholder="Enter your email"
+                          value={formData.email}
+                          onChange={handleInputChange}
                           className="pl-12 h-12 bg-secondary/30 border-border/50 rounded-xl focus:border-primary focus:ring-primary/20 transition-all duration-300"
                           required
                         />
@@ -300,8 +398,11 @@ function AuthContent() {
                           id="password"
                           type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
+                          value={formData.password}
+                          onChange={handleInputChange}
                           className="pl-12 pr-12 h-12 bg-secondary/30 border-border/50 rounded-xl focus:border-primary focus:ring-primary/20 transition-all duration-300"
                           required
+                          minLength={8}
                         />
                         <button
                           type="button"
@@ -324,8 +425,11 @@ function AuthContent() {
                             id="confirmPassword"
                             type={showPassword ? "text" : "password"}
                             placeholder="Confirm your password"
+                            value={formData.confirmPassword}
+                            onChange={handleInputChange}
                             className="pl-12 h-12 bg-secondary/30 border-border/50 rounded-xl focus:border-primary focus:ring-primary/20 transition-all duration-300"
                             required
+                            minLength={8}
                           />
                         </div>
                       </div>
@@ -333,11 +437,11 @@ function AuthContent() {
 
                     <Button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || authLoading}
                       className="relative w-full h-12 text-base font-medium overflow-hidden group bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300 rounded-xl"
                     >
                       <span className="relative z-10 flex items-center justify-center gap-2">
-                        {isLoading ? (
+                        {isLoading || authLoading ? (
                           <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                         ) : (
                           <>
@@ -364,6 +468,7 @@ function AuthContent() {
                   <div className="grid grid-cols-2 gap-4">
                     <Button
                       variant="outline"
+                      type="button"
                       className="h-12 rounded-xl bg-transparent border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all duration-300"
                     >
                       <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -388,6 +493,7 @@ function AuthContent() {
                     </Button>
                     <Button
                       variant="outline"
+                      type="button"
                       className="h-12 rounded-xl bg-transparent border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all duration-300"
                     >
                       <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
@@ -401,7 +507,7 @@ function AuthContent() {
                   <p className="text-center text-sm text-muted-foreground mt-8">
                     {mode === "login" ? (
                       <>
-                        Don't have an account?{" "}
+                        Don&apos;t have an account?{" "}
                         <button
                           onClick={() => {
                             setMode("register")
