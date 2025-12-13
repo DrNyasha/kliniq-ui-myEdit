@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import { PatientSidebar } from "@/components/patient-sidebar"
+import { LinkHospitalModal } from "@/components/dashboard/link-hospital-modal"
+import { dashboardApi, DashboardResponse } from "@/lib/dashboard-api"
+import type { LinkedHospital as ApiLinkedHospital } from "@/lib/dashboard-api"
 import {
   MessageSquare,
   Mic,
@@ -147,7 +150,47 @@ export default function PatientDashboard() {
   const [selectedAppointment, setSelectedAppointment] = useState<string | null>(null)
   const [selectedHospital, setSelectedHospital] = useState<string | null>(null)
   const [showTranscript, setShowTranscript] = useState<string | null>(null)
+  const [showLinkHospitalModal, setShowLinkHospitalModal] = useState(false)
+  const [linkedHospitals, setLinkedHospitals] = useState<LinkedHospital[]>([])
+  const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null)
+  const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Fetch dashboard data on mount
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const data = await dashboardApi.getDashboard()
+        setDashboardData(data)
+        // Transform API snake_case to local camelCase
+        const transformedHospitals: LinkedHospital[] = data.linked_hospitals.map((h: ApiLinkedHospital) => ({
+          id: h.id,
+          name: h.name,
+          location: h.location,
+          type: h.type,
+          departments: h.departments,
+          linkedSince: h.linked_since,
+          totalVisits: h.total_visits,
+          rating: h.rating,
+        }))
+        setLinkedHospitals(transformedHospitals)
+        // Set welcome message from API
+        setMessages([{
+          id: "1",
+          role: "assistant",
+          content: data.welcome_message,
+          timestamp: new Date(),
+        }])
+      } catch (error) {
+        console.error("Failed to load dashboard:", error)
+        // Keep mock data as fallback
+        setLinkedHospitals(mockHospitals)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDashboard()
+  }, [])
 
   useEffect(() => {
     setMounted(true)
@@ -168,21 +211,34 @@ export default function PatientDashboard() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const currentInput = inputValue
     setInputValue("")
     setIsTyping(true)
 
-    // Simulate AI response
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      // Call N-ATLaS API through backend
+      const response = await dashboardApi.sendChatMessage(currentInput)
 
-    const aiResponse: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: getAIResponse(inputValue),
-      timestamp: new Date(),
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: response.response,
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, aiResponse])
+    } catch (error) {
+      console.error("AI chat error:", error)
+      // Fallback to local response
+      const aiResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: getAIResponse(currentInput),
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, aiResponse])
+    } finally {
+      setIsTyping(false)
     }
-
-    setIsTyping(false)
-    setMessages((prev) => [...prev, aiResponse])
   }
 
   const getAIResponse = (query: string): string => {
@@ -833,7 +889,7 @@ export default function PatientDashboard() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-semibold text-foreground">My Linked Hospitals</h2>
                   <Button
-                    onClick={() => window.location.href = "/dashboard/appointments"}
+                    onClick={() => setShowLinkHospitalModal(true)}
                     variant="outline"
                     className="rounded-xl bg-transparent"
                   >
@@ -843,7 +899,7 @@ export default function PatientDashboard() {
                 </div>
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {mockHospitals.map((hospital, index) => (
+                  {linkedHospitals.map((hospital, index) => (
                     <motion.div
                       key={hospital.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -931,6 +987,26 @@ export default function PatientDashboard() {
           </AnimatePresence>
         </div>
       </main>
+
+      {/* Link Hospital Modal */}
+      <LinkHospitalModal
+        isOpen={showLinkHospitalModal}
+        onClose={() => setShowLinkHospitalModal(false)}
+        onLinked={(hospital) => {
+          // Convert API response to local format
+          const newHospital = {
+            id: hospital.id,
+            name: hospital.name,
+            location: hospital.location,
+            type: hospital.type,
+            departments: hospital.departments,
+            linkedSince: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            totalVisits: 0,
+            rating: hospital.rating,
+          }
+          setLinkedHospitals(prev => [newHospital, ...prev])
+        }}
+      />
     </div>
   )
 }
