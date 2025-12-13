@@ -12,9 +12,10 @@ interface LinkHospitalModalProps {
     isOpen: boolean
     onClose: () => void
     onLinked: (hospital: LinkedHospital) => void
+    linkedHospitalIds?: string[] // IDs of already linked hospitals to exclude
 }
 
-export function LinkHospitalModal({ isOpen, onClose, onLinked }: LinkHospitalModalProps) {
+export function LinkHospitalModal({ isOpen, onClose, onLinked, linkedHospitalIds = [] }: LinkHospitalModalProps) {
     const [mode, setMode] = useState<"code" | "search">("code")
     const [hospitalCode, setHospitalCode] = useState("")
     const [searchQuery, setSearchQuery] = useState("")
@@ -48,7 +49,9 @@ export function LinkHospitalModal({ isOpen, onClose, onLinked }: LinkHospitalMod
         setLoading(true)
         try {
             const response = await dashboardApi.getHospitals()
-            setHospitals(response.hospitals)
+            // Filter out already linked hospitals
+            const filtered = response.hospitals.filter(h => !linkedHospitalIds.includes(h.id))
+            setHospitals(filtered)
         } catch (err) {
             console.error("Failed to load hospitals:", err)
         } finally {
@@ -60,7 +63,9 @@ export function LinkHospitalModal({ isOpen, onClose, onLinked }: LinkHospitalMod
         setLoading(true)
         try {
             const response = await dashboardApi.searchHospitals(query)
-            setHospitals(response.hospitals)
+            // Filter out already linked hospitals
+            const filtered = response.hospitals.filter(h => !linkedHospitalIds.includes(h.id))
+            setHospitals(filtered)
         } catch (err) {
             console.error("Failed to search hospitals:", err)
         } finally {

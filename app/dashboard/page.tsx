@@ -972,6 +972,7 @@ export default function PatientDashboard() {
           }
           setLinkedHospitals(prev => [newHospital, ...prev])
         }}
+        linkedHospitalIds={linkedHospitals.map(h => h.id)}
       />
     </div>
   )
