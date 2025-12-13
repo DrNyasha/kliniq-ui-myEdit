@@ -10,7 +10,13 @@ import { cn } from "@/lib/utils"
 import { PatientSidebar } from "@/components/patient-sidebar"
 import { LinkHospitalModal } from "@/components/dashboard/link-hospital-modal"
 import { dashboardApi, DashboardResponse } from "@/lib/dashboard-api"
-import type { LinkedHospital as ApiLinkedHospital } from "@/lib/dashboard-api"
+import type {
+  LinkedHospital as ApiLinkedHospital,
+  RecordingSummary,
+  DoctorNote,
+  HealthVitals,
+  RecentChat
+} from "@/lib/dashboard-api"
 import {
   MessageSquare,
   Mic,
@@ -68,60 +74,6 @@ interface LinkedHospital {
   rating: number
 }
 
-const mockAppointments: Appointment[] = [
-  {
-    id: "1",
-    doctor: "Dr. Oluwaseun Adeyemi",
-    specialty: "General Medicine",
-    date: "Dec 5, 2025",
-    time: "10:00 AM",
-    type: "in-person",
-    status: "upcoming",
-  },
-  {
-    id: "2",
-    doctor: "Dr. Amara Obi",
-    specialty: "Cardiology",
-    date: "Dec 12, 2025",
-    time: "2:30 PM",
-    type: "video",
-    status: "upcoming",
-  },
-]
-
-const mockHospitals: LinkedHospital[] = [
-  {
-    id: "1",
-    name: "Lagos University Teaching Hospital",
-    location: "Idi-Araba, Lagos",
-    type: "Teaching Hospital",
-    departments: ["General Medicine", "Cardiology", "Pediatrics", "Surgery"],
-    linkedSince: "Jan 15, 2025",
-    totalVisits: 12,
-    rating: 4.8,
-  },
-  {
-    id: "2",
-    name: "National Hospital Abuja",
-    location: "Central Business District, Abuja",
-    type: "Federal Hospital",
-    departments: ["Cardiology", "Neurology", "Orthopedics"],
-    linkedSince: "Mar 20, 2025",
-    totalVisits: 5,
-    rating: 4.6,
-  },
-  {
-    id: "3",
-    name: "Reddington Hospital",
-    location: "Victoria Island, Lagos",
-    type: "Private Hospital",
-    departments: ["General Medicine", "Dermatology", "ENT"],
-    linkedSince: "Aug 10, 2025",
-    totalVisits: 3,
-    rating: 4.9,
-  },
-]
-
 const quickActions = [
   { icon: MessageSquare, label: "New Triage", color: "from-primary to-primary/80" },
   { icon: Calendar, label: "Request Appointment", color: "from-accent to-accent/80" },
@@ -154,6 +106,10 @@ export default function PatientDashboard() {
   const [linkedHospitals, setLinkedHospitals] = useState<LinkedHospital[]>([])
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recordings, setRecordings] = useState<RecordingSummary[]>([])
+  const [doctorNotes, setDoctorNotes] = useState<DoctorNote[]>([])
+  const [healthVitals, setHealthVitals] = useState<HealthVitals | null>(null)
+  const [recentChats, setRecentChats] = useState<RecentChat[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Fetch dashboard data on mount
@@ -174,6 +130,11 @@ export default function PatientDashboard() {
           rating: h.rating,
         }))
         setLinkedHospitals(transformedHospitals)
+        // Set recordings, notes, vitals, chats from API
+        setRecordings(data.recent_recordings || [])
+        setDoctorNotes(data.doctor_notes || [])
+        setHealthVitals(data.health_vitals || null)
+        setRecentChats(data.recent_chats || [])
         // Set welcome message from API
         setMessages([{
           id: "1",
@@ -183,8 +144,7 @@ export default function PatientDashboard() {
         }])
       } catch (error) {
         console.error("Failed to load dashboard:", error)
-        // Keep mock data as fallback
-        setLinkedHospitals(mockHospitals)
+        // No fallback - only show API data
       } finally {
         setLoading(false)
       }
@@ -696,14 +656,18 @@ export default function PatientDashboard() {
                     </button>
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Recent Recordings</p>
-                      <div className="p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors" onClick={() => window.location.href = "/dashboard/consultations"}>
-                        <p className="text-sm font-medium text-foreground truncate">General Checkup</p>
-                        <p className="text-xs text-muted-foreground">Dec 5 • 15:32</p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors" onClick={() => window.location.href = "/dashboard/consultations"}>
-                        <p className="text-sm font-medium text-foreground truncate">Cardiac Follow-up</p>
-                        <p className="text-xs text-muted-foreground">Nov 28 • 22:45</p>
-                      </div>
+                      {recordings.length > 0 ? (
+                        recordings.slice(0, 2).map((rec) => (
+                          <div key={rec.id} className="p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 cursor-pointer transition-colors" onClick={() => window.location.href = "/dashboard/consultations"}>
+                            <p className="text-sm font-medium text-foreground truncate">{rec.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(rec.created_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })} • {Math.floor(rec.duration_seconds / 60)}:{(rec.duration_seconds % 60).toString().padStart(2, '0')}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No recordings yet</p>
+                      )}
                     </div>
                   </div>
 
@@ -714,18 +678,20 @@ export default function PatientDashboard() {
                       Latest Doctor Notes
                     </h3>
                     <div className="space-y-3">
-                      <div className="p-3 rounded-xl bg-secondary/30">
-                        <p className="text-xs text-muted-foreground mb-1">Nov 28, 2025 • Dr. Adeyemi</p>
-                        <p className="text-sm text-foreground">
-                          Prescribed Paracetamol 500mg for headaches. Follow up in 2 weeks if symptoms persist.
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-xl bg-secondary/30">
-                        <p className="text-xs text-muted-foreground mb-1">Nov 15, 2025 • Dr. Obi</p>
-                        <p className="text-sm text-foreground">
-                          Blood pressure normal. Continue current lifestyle modifications.
-                        </p>
-                      </div>
+                      {doctorNotes.length > 0 ? (
+                        doctorNotes.slice(0, 2).map((note) => (
+                          <div key={note.id} className="p-3 rounded-xl bg-secondary/30">
+                            <p className="text-xs text-muted-foreground mb-1">
+                              {new Date(note.date).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })} • {note.doctor_name}
+                            </p>
+                            <p className="text-sm text-foreground">
+                              {note.description || note.title}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No doctor notes yet</p>
+                      )}
                     </div>
                   </div>
 
@@ -738,12 +704,12 @@ export default function PatientDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/10 to-green-500/5 border border-green-500/20">
                         <Heart className="w-5 h-5 text-green-500 mb-2" />
-                        <p className="text-lg font-bold text-foreground">72</p>
+                        <p className="text-lg font-bold text-foreground">{healthVitals?.heart_rate ?? '--'}</p>
                         <p className="text-xs text-muted-foreground">Heart Rate</p>
                       </div>
                       <div className="p-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
                         <Activity className="w-5 h-5 text-primary mb-2" />
-                        <p className="text-lg font-bold text-foreground">120/80</p>
+                        <p className="text-lg font-bold text-foreground">{healthVitals?.blood_pressure ?? '--/--'}</p>
                         <p className="text-xs text-muted-foreground">Blood Pressure</p>
                       </div>
                     </div>
@@ -772,7 +738,7 @@ export default function PatientDashboard() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
-                  {mockAppointments.map((apt, index) => (
+                  {(dashboardData?.upcoming_appointments || []).map((apt, index) => (
                     <motion.div
                       key={apt.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -792,7 +758,7 @@ export default function PatientDashboard() {
                               )}
                             </div>
                             <div>
-                              <h3 className="font-semibold text-foreground">{apt.doctor}</h3>
+                              <h3 className="font-semibold text-foreground">{apt.doctor_name}</h3>
                               <p className="text-sm text-muted-foreground">{apt.specialty}</p>
                             </div>
                           </div>
@@ -803,11 +769,11 @@ export default function PatientDashboard() {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1.5">
                             <Calendar className="w-4 h-4" />
-                            {apt.date}
+                            {new Date(apt.scheduled_date).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Clock className="w-4 h-4" />
-                            {apt.time}
+                            {apt.scheduled_time}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mt-4">

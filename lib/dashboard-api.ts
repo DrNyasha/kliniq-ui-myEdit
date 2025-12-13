@@ -39,11 +39,49 @@ export interface LinkedHospital {
   rating: number
 }
 
+export interface RecordingSummary {
+  id: string
+  title: string
+  doctor_name: string
+  duration_seconds: number
+  has_transcript: boolean
+  created_at: string
+}
+
+export interface DoctorNote {
+  id: string
+  type: string
+  title: string
+  description?: string
+  doctor_name: string
+  date: string
+}
+
+export interface HealthVitals {
+  heart_rate?: number
+  blood_pressure?: string
+  temperature?: number
+  weight?: number
+  oxygen_saturation?: number
+  recorded_at?: string
+}
+
+export interface RecentChat {
+  id: string
+  title?: string
+  preview: string
+  updated_at: string
+}
+
 export interface DashboardResponse {
   user_name: string
   preferred_language: string
   upcoming_appointments: AppointmentSummary[]
   linked_hospitals: LinkedHospital[]
+  recent_recordings: RecordingSummary[]
+  doctor_notes: DoctorNote[]
+  health_vitals?: HealthVitals
+  recent_chats: RecentChat[]
   stats: DashboardStats
   welcome_message: string
 }
