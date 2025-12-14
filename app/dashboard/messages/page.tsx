@@ -95,7 +95,7 @@ export default function MessagesPage() {
     const [isRecording, setIsRecording] = useState(false)
     const [callMinimized, setCallMinimized] = useState(false)
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
-    const [showTranscript, setShowTranscript] = useState<string | null>(null)
+    const [showTranscript, setShowTranscript] = useState<Set<string>>(new Set())
     const [showNewConversation, setShowNewConversation] = useState(false)
     const [availableClinicians, setAvailableClinicians] = useState<AvailableClinician[]>([])
     const [loadingClinicians, setLoadingClinicians] = useState(false)
@@ -616,23 +616,56 @@ export default function MessagesPage() {
                                                                 </div>
                                                                 <button
                                                                     onClick={async () => {
-                                                                        if (showTranscript === message.id) {
-                                                                            setShowTranscript(null)
+                                                                        const isShowing = showTranscript.has(message.id)
+
+                                                                        if (isShowing) {
+                                                                            // Hide this transcript
+                                                                            setShowTranscript(prev => {
+                                                                                const next = new Set(prev)
+                                                                                next.delete(message.id)
+                                                                                return next
+                                                                            })
                                                                             return
                                                                         }
-                                                                        // If transcripts already exist, just show them
-                                                                        if (message.transcripts && Object.keys(message.transcripts).length > 0) {
-                                                                            setShowTranscript(message.id)
-                                                                            return
+
+                                                                        // Show this transcript
+                                                                        setShowTranscript(prev => new Set(prev).add(message.id))
+
+                                                                        // If no transcripts exist yet, auto-fetch in user's preferred language
+                                                                        if (!message.transcripts || Object.keys(message.transcripts).length === 0) {
+                                                                            const preferredLang = message.originalLanguage || "english"
+                                                                            try {
+                                                                                const result = await messagesApi.transcribeMessage(
+                                                                                    message.id,
+                                                                                    preferredLang,  // override language (what audio is in)
+                                                                                    preferredLang   // view in this language
+                                                                                )
+                                                                                if (result.text) {
+                                                                                    setMessages(prev => prev.map(m =>
+                                                                                        m.id === message.id
+                                                                                            ? {
+                                                                                                ...m,
+                                                                                                transcripts: { ...(m.transcripts || {}), [preferredLang]: result.text },
+                                                                                                originalLanguage: result.original_language || preferredLang,
+                                                                                                selectedTranscriptLang: preferredLang
+                                                                                            }
+                                                                                            : m
+                                                                                    ))
+                                                                                }
+                                                                            } catch (error) {
+                                                                                toast({
+                                                                                    title: "Transcription failed",
+                                                                                    description: "Could not transcribe audio. Please try again.",
+                                                                                    variant: "destructive"
+                                                                                })
+                                                                            }
                                                                         }
-                                                                        // No transcripts yet - show the panel so user can select language
-                                                                        setShowTranscript(message.id)
                                                                     }}
                                                                     className="mt-2 text-xs underline opacity-70 hover:opacity-100 transition-opacity"
                                                                 >
-                                                                    {showTranscript === message.id ? "Hide Transcript" : "Show Transcript"}
+                                                                    {showTranscript.has(message.id) ? "Hide Transcript" : "Show Transcript"}
                                                                 </button>
-                                                                {showTranscript === message.id && (
+                                                                {showTranscript.has(message.id) && (
                                                                     <motion.div
                                                                         initial={{ opacity: 0, height: 0 }}
                                                                         animate={{ opacity: 1, height: "auto" }}
@@ -643,12 +676,12 @@ export default function MessagesPage() {
                                                                             <p className="text-xs opacity-70">
                                                                                 {message.originalLanguage
                                                                                     ? `Original: ${message.originalLanguage.charAt(0).toUpperCase() + message.originalLanguage.slice(1)}`
-                                                                                    : "Transcribed"
+                                                                                    : "Transcript"
                                                                                 }
                                                                             </p>
                                                                             {/* Language selector */}
                                                                             <select
-                                                                                className="text-xs bg-white/10 rounded px-2 py-1 border-none outline-none"
+                                                                                className="text-xs bg-white/10 rounded px-2 py-1 border-none outline-none cursor-pointer"
                                                                                 value={message.selectedTranscriptLang || message.originalLanguage || "english"}
                                                                                 onChange={async (e) => {
                                                                                     const selectedLang = e.target.value
@@ -666,11 +699,11 @@ export default function MessagesPage() {
                                                                                         return
                                                                                     }
 
-                                                                                    // Need to call API - either for first transcription or translation
+                                                                                    // Need to call API for translation
                                                                                     try {
                                                                                         const result = await messagesApi.transcribeMessage(
                                                                                             message.id,
-                                                                                            message.transcripts ? undefined : selectedLang,  // override only if first transcription
+                                                                                            undefined,  // don't override, use stored original language
                                                                                             selectedLang  // view in this language
                                                                                         )
                                                                                         if (result.text) {
@@ -687,8 +720,8 @@ export default function MessagesPage() {
                                                                                         }
                                                                                     } catch (error) {
                                                                                         toast({
-                                                                                            title: "Transcription failed",
-                                                                                            description: "Could not transcribe or translate audio.",
+                                                                                            title: "Translation failed",
+                                                                                            description: "Could not translate transcript.",
                                                                                             variant: "destructive"
                                                                                         })
                                                                                     }
@@ -709,7 +742,7 @@ export default function MessagesPage() {
                                                                             if (transcriptText) {
                                                                                 return <p className="text-sm">{transcriptText}</p>
                                                                             } else if (message.transcripts && Object.keys(message.transcripts).length > 0) {
-                                                                                // Has some transcripts but not in selected language
+                                                                                // Has some transcripts but not in selected language - fetching translation
                                                                                 return (
                                                                                     <div className="flex items-center gap-2">
                                                                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -717,12 +750,11 @@ export default function MessagesPage() {
                                                                                     </div>
                                                                                 )
                                                                             } else {
-                                                                                // No transcripts at all yet
+                                                                                // No transcripts at all yet - fetching
                                                                                 return (
-                                                                                    <div className="text-center py-2">
-                                                                                        <p className="text-sm opacity-70 mb-2">
-                                                                                            Select the language the audio was spoken in to transcribe
-                                                                                        </p>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                                        <p className="text-sm opacity-70">Transcribing...</p>
                                                                                     </div>
                                                                                 )
                                                                             }
