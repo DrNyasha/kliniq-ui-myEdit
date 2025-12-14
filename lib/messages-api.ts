@@ -25,6 +25,9 @@ export interface MessageResponse {
     is_read: boolean
     attachment_url?: string
     attachment_name?: string
+    audio_duration?: number
+    original_language?: string  // Language audio was spoken in
+    transcripts?: Record<string, string>  // Multi-language transcripts {"english": "...", "yoruba": "..."}
     created_at: string
     is_mine: boolean
 }
@@ -150,6 +153,39 @@ export const messagesApi = {
         const token = getToken()
         return apiClient.delete<DeleteMessageResponse>(`/messages/messages/${messageId}`, token)
     },
+
+    /**
+     * Transcribe an audio message using N-ATLaS ASR
+     * Returns transcript in viewer's preferred language (auto-translates)
+     * @param messageId The ID of the audio message 
+     * @param overrideLanguage Override spoken language and re-transcribe (english, yoruba, hausa, igbo)
+     * @param viewLanguage View transcript in different language (optional)
+     */
+    transcribeMessage: async (
+        messageId: string,
+        overrideLanguage?: string,
+        viewLanguage?: string
+    ): Promise<TranscriptionResponse> => {
+        const token = getToken()
+        const params = new URLSearchParams()
+        if (overrideLanguage) params.append('override_language', overrideLanguage)
+        if (viewLanguage) params.append('view_language', viewLanguage)
+        const queryString = params.toString()
+        const url = queryString
+            ? `/messages/messages/${messageId}/transcribe?${queryString}`
+            : `/messages/messages/${messageId}/transcribe`
+        return apiClient.post<TranscriptionResponse>(url, {}, token)
+    },
+}
+
+// Transcription response type
+export interface TranscriptionResponse {
+    text: string
+    language?: string          // Language the transcript is in (viewer's preferred)
+    original_language?: string // Language the audio was spoken in
+    cached?: boolean
+    translated?: boolean       // True if transcript was translated
+    error?: string
 }
 
 // Additional types for available clinicians
