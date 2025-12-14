@@ -20,7 +20,6 @@ import {
     Video,
     MoreVertical,
     Paperclip,
-    Smile,
     ChevronLeft,
     Mic,
     MicOff,
@@ -33,6 +32,10 @@ import {
     Plus,
     Users,
     Building2,
+    Play,
+    Pause,
+    Edit2,
+    Trash2,
 } from "lucide-react"
 
 interface LocalMessage {
@@ -43,6 +46,9 @@ interface LocalMessage {
     timestamp: Date
     read: boolean
     isAudio?: boolean
+    audioUrl?: string
+    audioDuration?: number
+    transcript?: string
     attachment?: {
         name: string
         url?: string
@@ -59,6 +65,8 @@ function transformMessage(msg: MessageResponse): LocalMessage {
         timestamp: new Date(msg.created_at),
         read: msg.is_read,
         isAudio: msg.message_type === "audio",
+        audioUrl: msg.message_type === "audio" ? msg.attachment_url : undefined,
+        audioDuration: msg.message_type === "audio" ? parseInt(msg.attachment_name?.match(/(\d+)s/)?.[1] || "0") : undefined,
         attachment: msg.attachment_name ? {
             name: msg.attachment_name,
             url: msg.attachment_url
@@ -89,8 +97,18 @@ export default function MessagesPage() {
     const [loadingClinicians, setLoadingClinicians] = useState(false)
     const [clinicianSearchQuery, setClinicianSearchQuery] = useState("")
     const [startingConversationWith, setStartingConversationWith] = useState<string | null>(null)
+    const [contextMenu, setContextMenu] = useState<{ messageId: string; x: number; y: number } | null>(null)
+    const [editingMessage, setEditingMessage] = useState<{ id: string; content: string } | null>(null)
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+    const [actionLoading, setActionLoading] = useState(false)
+    const [playingAudio, setPlayingAudio] = useState<string | null>(null)
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+    const audioChunksRef = useRef<Blob[]>([])
+    const recordingStartRef = useRef<number>(0)
+    const audioRef = useRef<HTMLAudioElement | null>(null)
 
     const { toast } = useToast()
 
@@ -199,26 +217,82 @@ export default function MessagesPage() {
         if (!selectedConversation) return
 
         if (!isRecording) {
-            setIsRecording(true)
-        } else {
-            setIsRecording(false)
-
-            // Send voice message
-            setSending(true)
+            // Start recording
             try {
-                const response = await messagesApi.sendMessage(selectedConversation, {
-                    content: "🎤 Voice message",
-                    message_type: "audio"
-                })
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+                mediaRecorderRef.current = mediaRecorder
+                audioChunksRef.current = []
+                recordingStartRef.current = Date.now()
 
-                if (response.success && response.sent_message) {
-                    setMessages(prev => [...prev, transformMessage(response.sent_message!)])
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        audioChunksRef.current.push(e.data)
+                    }
                 }
+
+                mediaRecorder.onstop = async () => {
+                    const duration = Math.round((Date.now() - recordingStartRef.current) / 1000)
+                    const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+                    stream.getTracks().forEach(track => track.stop())
+
+                    // Upload to Vercel Blob
+                    setSending(true)
+                    try {
+                        const formData = new FormData()
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+                        formData.append('file', audioBlob, `voice-${timestamp}.webm`)
+                        formData.append('filename', `voice-${timestamp}.webm`)
+
+                        const uploadRes = await fetch('/api/recordings/upload', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        const uploadData = await uploadRes.json()
+
+                        if (uploadData.success && uploadData.url) {
+                            // Send message with audio URL
+                            const response = await messagesApi.sendMessage(selectedConversation!, {
+                                content: `🎤 Voice message (${duration}s)`,
+                                message_type: 'audio',
+                                attachment_url: uploadData.url,
+                                attachment_name: `voice-${duration}s.webm`
+                            })
+
+                            if (response.success && response.sent_message) {
+                                setMessages(prev => [...prev, {
+                                    ...transformMessage(response.sent_message!),
+                                    isAudio: true,
+                                    audioUrl: uploadData.url,
+                                    audioDuration: duration
+                                }])
+                                setConversations(prev => prev.map(c =>
+                                    c.id === selectedConversation
+                                        ? { ...c, last_message: `🎤 Voice (${duration}s)`, last_message_time: "Just now" }
+                                        : c
+                                ))
+                            }
+                        } else {
+                            toast({ title: "Error", description: "Failed to upload voice note", variant: "destructive" })
+                        }
+                    } catch (error) {
+                        toast({ title: "Error", description: "Failed to send voice message", variant: "destructive" })
+                    } finally {
+                        setSending(false)
+                    }
+                }
+
+                mediaRecorder.start()
+                setIsRecording(true)
             } catch (error) {
-                toast({ title: "Error", description: "Failed to send voice message", variant: "destructive" })
-            } finally {
-                setSending(false)
+                toast({ title: "Error", description: "Could not access microphone", variant: "destructive" })
             }
+        } else {
+            // Stop recording
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+                mediaRecorderRef.current.stop()
+            }
+            setIsRecording(false)
         }
     }
 
@@ -344,7 +418,7 @@ export default function MessagesPage() {
                         {/* Chat Area */}
                         {selectedConversation && selectedConversationData ? (
                             <div className={cn(
-                                "flex-1 flex flex-col overflow-hidden",
+                                "flex-1 flex flex-col h-full min-h-0",
                                 !showMobileChat && "hidden md:flex"
                             )}>
                                 <div className="p-4 border-b border-border/50 bg-gradient-to-r from-primary/5 via-transparent to-accent/5">
@@ -392,7 +466,7 @@ export default function MessagesPage() {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                                <div className="flex-1 overflow-y-auto p-6 space-y-4 min-h-0">
                                     {messages.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                                             <MessageSquare className="w-16 h-16 mb-4 opacity-20" />
@@ -405,7 +479,26 @@ export default function MessagesPage() {
                                                 key={message.id}
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className={cn("flex", message.sender === "user" ? "justify-end" : "justify-start")}
+                                                className={cn("flex relative group", message.sender === "user" ? "justify-end" : "justify-start")}
+                                                onContextMenu={(e) => {
+                                                    if (message.sender === "user") {
+                                                        e.preventDefault()
+                                                        setContextMenu({ messageId: message.id, x: e.clientX, y: e.clientY })
+                                                    }
+                                                }}
+                                                onTouchStart={() => {
+                                                    if (message.sender === "user") {
+                                                        longPressTimer.current = setTimeout(() => {
+                                                            setContextMenu({ messageId: message.id, x: window.innerWidth / 2, y: window.innerHeight / 2 })
+                                                        }, 500)
+                                                    }
+                                                }}
+                                                onTouchEnd={() => {
+                                                    if (longPressTimer.current) {
+                                                        clearTimeout(longPressTimer.current)
+                                                        longPressTimer.current = null
+                                                    }
+                                                }}
                                             >
                                                 <div
                                                     className={cn(
@@ -416,11 +509,107 @@ export default function MessagesPage() {
                                                     )}
                                                 >
                                                     <div className="p-4">
-                                                        <p className="text-sm leading-relaxed">{message.content}</p>
+                                                        {editingMessage?.id === message.id ? (
+                                                            <div className="space-y-2">
+                                                                <Input
+                                                                    value={editingMessage.content}
+                                                                    onChange={(e) => setEditingMessage({ ...editingMessage, content: e.target.value })}
+                                                                    className="bg-white/20 border-white/30 text-inherit"
+                                                                    autoFocus
+                                                                />
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => setEditingMessage(null)}
+                                                                        className="text-xs h-7"
+                                                                    >
+                                                                        Cancel
+                                                                    </Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        onClick={async () => {
+                                                                            setActionLoading(true)
+                                                                            try {
+                                                                                const response = await messagesApi.editMessage(message.id, editingMessage.content)
+                                                                                if (response.success) {
+                                                                                    setMessages(prev => prev.map(m =>
+                                                                                        m.id === message.id ? { ...m, content: editingMessage.content } : m
+                                                                                    ))
+                                                                                    setEditingMessage(null)
+                                                                                    toast({ title: "Success", description: "Message updated" })
+                                                                                }
+                                                                            } catch (error) {
+                                                                                toast({ title: "Error", description: "Failed to update message", variant: "destructive" })
+                                                                            } finally {
+                                                                                setActionLoading(false)
+                                                                            }
+                                                                        }}
+                                                                        disabled={actionLoading}
+                                                                        className="text-xs h-7 bg-white/20 hover:bg-white/30"
+                                                                    >
+                                                                        {actionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-sm leading-relaxed">{message.content}</p>
+                                                        )}
 
-                                                        {/* Voice Message Transcript Toggle */}
-                                                        {message.isAudio && (
+                                                        {/* Voice Message with Waveform */}
+                                                        {message.isAudio && message.audioUrl && (
                                                             <>
+                                                                <audio
+                                                                    id={`audio-${message.id}`}
+                                                                    src={message.audioUrl}
+                                                                    onEnded={() => setPlayingAudio(null)}
+                                                                    className="hidden"
+                                                                />
+                                                                <div className="flex items-center gap-3 mt-2">
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const audio = document.getElementById(`audio-${message.id}`) as HTMLAudioElement
+                                                                            if (playingAudio === message.id) {
+                                                                                audio?.pause()
+                                                                                setPlayingAudio(null)
+                                                                            } else {
+                                                                                // Pause any other playing audio
+                                                                                if (playingAudio) {
+                                                                                    const prevAudio = document.getElementById(`audio-${playingAudio}`) as HTMLAudioElement
+                                                                                    prevAudio?.pause()
+                                                                                }
+                                                                                audio?.play()
+                                                                                setPlayingAudio(message.id)
+                                                                            }
+                                                                        }}
+                                                                        className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors flex-shrink-0"
+                                                                    >
+                                                                        {playingAudio === message.id ? (
+                                                                            <Pause className="w-4 h-4 fill-current" />
+                                                                        ) : (
+                                                                            <Play className="w-4 h-4 fill-current" />
+                                                                        )}
+                                                                    </button>
+                                                                    <div className="flex items-center gap-0.5 flex-1">
+                                                                        {/* Synthwave bars */}
+                                                                        {[...Array(24)].map((_, i) => (
+                                                                            <div
+                                                                                key={i}
+                                                                                className={cn(
+                                                                                    "w-1 rounded-full transition-all",
+                                                                                    message.sender === "user" ? "bg-primary-foreground/60" : "bg-primary/60",
+                                                                                    playingAudio === message.id && "animate-pulse"
+                                                                                )}
+                                                                                style={{
+                                                                                    height: `${Math.max(4, Math.sin(i * 0.5) * 12 + 8 + (i % 3) * 4)}px`
+                                                                                }}
+                                                                            />
+                                                                        ))}
+                                                                    </div>
+                                                                    <span className="text-xs opacity-70 flex-shrink-0">
+                                                                        {message.audioDuration ? `0:${String(message.audioDuration).padStart(2, '0')}` : '0:00'}
+                                                                    </span>
+                                                                </div>
                                                                 <button
                                                                     onClick={() => setShowTranscript(showTranscript === message.id ? null : message.id)}
                                                                     className="mt-2 text-xs underline opacity-70 hover:opacity-100 transition-opacity"
@@ -434,14 +623,14 @@ export default function MessagesPage() {
                                                                         className="mt-3 pt-3 border-t border-primary-foreground/20"
                                                                     >
                                                                         <p className="text-xs opacity-70 mb-1">Transcribed:</p>
-                                                                        <p className="text-sm">"Voice message transcription coming soon"</p>
+                                                                        <p className="text-sm">{message.transcript || "Transcript not available yet"}</p>
                                                                     </motion.div>
                                                                 )}
                                                             </>
                                                         )}
 
-                                                        {/* File Attachment Display */}
-                                                        {message.attachment && (
+                                                        {/* File Attachment Display - only for non-audio */}
+                                                        {message.attachment && !message.isAudio && (
                                                             <div className="mt-3 p-3 bg-black/10 rounded-xl flex items-center gap-2">
                                                                 <Paperclip className="w-4 h-4" />
                                                                 <div>
@@ -513,12 +702,6 @@ export default function MessagesPage() {
                                             )}
                                         >
                                             {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5 text-muted-foreground" />}
-                                        </button>
-                                        <button
-                                            className="p-2 rounded-xl hover:bg-secondary transition-colors"
-                                            title="Use your system emoji picker"
-                                        >
-                                            <Smile className="w-5 h-5 text-muted-foreground" />
                                         </button>
                                         <div className="flex-1">
                                             <Input
@@ -828,6 +1011,103 @@ export default function MessagesPage() {
                                         ))}
                                     </>
                                 )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Context Menu */}
+                {contextMenu && (
+                    <>
+                        {/* Backdrop to catch clicks outside */}
+                        <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setContextMenu(null)}
+                        />
+                        <div
+                            className="fixed z-50"
+                            style={{ left: contextMenu.x, top: contextMenu.y }}
+                        >
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                className="bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-32"
+                            >
+                                <button
+                                    onClick={() => {
+                                        const msg = messages.find(m => m.id === contextMenu.messageId)
+                                        if (msg) {
+                                            setEditingMessage({ id: msg.id, content: msg.content })
+                                        }
+                                        setContextMenu(null)
+                                    }}
+                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-secondary transition-colors text-left"
+                                >
+                                    <Edit2 className="w-4 h-4" />
+                                    <span>Edit</span>
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setDeleteConfirm(contextMenu.messageId)
+                                        setContextMenu(null)
+                                    }}
+                                    className="w-full px-4 py-3 flex items-center gap-3 hover:bg-destructive/10 text-destructive transition-colors text-left"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    <span>Delete</span>
+                                </button>
+                            </motion.div>
+                        </div>
+                    </>
+                )}
+
+                {/* Delete Confirmation Modal */}
+                {deleteConfirm && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-card w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
+                        >
+                            <div className="p-6">
+                                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+                                    <Trash2 className="w-6 h-6 text-destructive" />
+                                </div>
+                                <h3 className="font-semibold text-lg text-center text-foreground mb-2">Delete Message?</h3>
+                                <p className="text-sm text-muted-foreground text-center mb-6">
+                                    This action cannot be undone. The message will be permanently deleted.
+                                </p>
+                                <div className="flex gap-3">
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1"
+                                        onClick={() => setDeleteConfirm(null)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        className="flex-1"
+                                        disabled={actionLoading}
+                                        onClick={async () => {
+                                            setActionLoading(true)
+                                            try {
+                                                const response = await messagesApi.deleteMessage(deleteConfirm)
+                                                if (response.success) {
+                                                    setMessages(prev => prev.filter(m => m.id !== deleteConfirm))
+                                                    setDeleteConfirm(null)
+                                                    toast({ title: "Success", description: "Message deleted" })
+                                                }
+                                            } catch (error) {
+                                                toast({ title: "Error", description: "Failed to delete message", variant: "destructive" })
+                                            } finally {
+                                                setActionLoading(false)
+                                            }
+                                        }}
+                                    >
+                                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Delete"}
+                                    </Button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>

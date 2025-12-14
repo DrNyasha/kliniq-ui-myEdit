@@ -134,6 +134,22 @@ export const messagesApi = {
         const token = getToken()
         return apiClient.get<AvailableCliniciansListResponse>('/messages/available-clinicians', token)
     },
+
+    /**
+     * Edit a message
+     */
+    editMessage: async (messageId: string, content: string): Promise<EditMessageResponse> => {
+        const token = getToken()
+        return apiClient.put<EditMessageResponse>(`/messages/messages/${messageId}`, { content }, token)
+    },
+
+    /**
+     * Delete a message
+     */
+    deleteMessage: async (messageId: string): Promise<DeleteMessageResponse> => {
+        const token = getToken()
+        return apiClient.delete<DeleteMessageResponse>(`/messages/messages/${messageId}`, token)
+    },
 }
 
 // Additional types for available clinicians
@@ -152,4 +168,15 @@ export interface AvailableClinician {
 export interface AvailableCliniciansListResponse {
     clinicians: AvailableClinician[]
     total: number
+}
+
+export interface EditMessageResponse {
+    success: boolean
+    message: string
+    updated_message?: MessageResponse
+}
+
+export interface DeleteMessageResponse {
+    success: boolean
+    message: string
 }
