@@ -104,6 +104,11 @@ export default function ConsultationsPage() {
     const [isPlaying, setIsPlaying] = useState(false)
     const [playbackProgress, setPlaybackProgress] = useState(0)
 
+    // Transcript states
+    const [transcriptLanguage, setTranscriptLanguage] = useState<string>("english")
+    const [isTranscribing, setIsTranscribing] = useState(false)
+    const [transcriptText, setTranscriptText] = useState<string>("")
+
     // Refs
     const timerRef = useRef<NodeJS.Timeout | null>(null)
     const playbackRef = useRef<NodeJS.Timeout | null>(null)
@@ -399,6 +404,41 @@ Recorded via Kliniq Health Platform
             })
         }
     }
+
+    const handleTranscribe = async (recording: Recording, language: string) => {
+        if (!recording.file_url) return
+
+        setIsTranscribing(true)
+        setTranscriptText("")
+
+        try {
+            const result = await recordingsApi.transcribeRecording(recording.id, language)
+            setTranscriptText(result.text)
+            setTranscriptLanguage(language)
+
+            // Update local recording with transcript
+            setAllRecordings(prev => prev.map(r =>
+                r.id === recording.id ? { ...r, transcript: result.text } : r
+            ))
+
+            if (!result.cached) {
+                toast({
+                    title: result.translated ? "Translated" : "Transcribed",
+                    description: `Transcript ready in ${language}`
+                })
+            }
+        } catch (error) {
+            console.error("Transcription failed:", error)
+            toast({
+                title: "Error",
+                description: "Failed to transcribe recording",
+                variant: "destructive"
+            })
+        } finally {
+            setIsTranscribing(false)
+        }
+    }
+
 
     // Client-side filtering
     const filteredRecordings = allRecordings.filter((rec) => {
@@ -727,12 +767,62 @@ Recorded via Kliniq Health Platform
                                                             {recording.duration}
                                                         </span>
                                                     </div>
-                                                    {recording.transcript && (
-                                                        <div className="mt-4 p-4 rounded-xl bg-secondary/30">
-                                                            <p className="text-xs font-medium text-muted-foreground mb-2">TRANSCRIPT</p>
-                                                            <p className="text-sm text-foreground">{recording.transcript}</p>
+                                                    {/* Transcript Section */}
+                                                    <div className="mt-4 p-4 rounded-xl bg-secondary/30">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <p className="text-xs font-medium text-muted-foreground">TRANSCRIPT</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <select
+                                                                    value={transcriptLanguage}
+                                                                    onChange={(e) => {
+                                                                        setTranscriptLanguage(e.target.value)
+                                                                        if (recording.transcript || transcriptText) {
+                                                                            handleTranscribe(recording, e.target.value)
+                                                                        }
+                                                                    }}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="text-xs px-2 py-1 rounded-lg border border-border bg-background"
+                                                                >
+                                                                    <option value="english">English</option>
+                                                                    <option value="hausa">Hausa</option>
+                                                                    <option value="igbo">Igbo</option>
+                                                                    <option value="yoruba">Yoruba</option>
+                                                                </select>
+                                                                {!recording.transcript && !transcriptText && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation()
+                                                                            handleTranscribe(recording, transcriptLanguage)
+                                                                        }}
+                                                                        disabled={isTranscribing}
+                                                                        className="text-xs rounded-lg"
+                                                                    >
+                                                                        {isTranscribing ? (
+                                                                            <><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Transcribing...</>
+                                                                        ) : (
+                                                                            "Transcribe"
+                                                                        )}
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    )}
+                                                        {isTranscribing ? (
+                                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                                <span>Transcribing audio...</span>
+                                                            </div>
+                                                        ) : transcriptText || recording.transcript ? (
+                                                            <p className="text-sm text-foreground whitespace-pre-wrap">
+                                                                {transcriptText || recording.transcript}
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-sm text-muted-foreground italic">
+                                                                Click "Transcribe" to generate transcript
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>

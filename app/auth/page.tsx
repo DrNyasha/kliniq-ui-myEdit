@@ -70,7 +70,19 @@ function AuthContent() {
     if (modeParam === "register") {
       setMode("register")
     }
-  }, [searchParams])
+
+    // Check if redirected due to session expiry
+    const expired = searchParams.get("expired")
+    if (expired === "true") {
+      toast({
+        variant: "destructive",
+        title: "Session Expired",
+        description: "Your session has expired. Please log in again.",
+      })
+      // Clean up the URL
+      window.history.replaceState({}, '', '/auth')
+    }
+  }, [searchParams, toast])
 
   // Redirect if already authenticated
   useEffect(() => {

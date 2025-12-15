@@ -110,6 +110,7 @@ export default function PatientDashboard() {
   const [doctorNotes, setDoctorNotes] = useState<DoctorNote[]>([])
   const [healthVitals, setHealthVitals] = useState<HealthVitals | null>(null)
   const [recentChats, setRecentChats] = useState<RecentChat[]>([])
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Fetch dashboard data on mount
@@ -177,7 +178,12 @@ export default function PatientDashboard() {
 
     try {
       // Call N-ATLaS API through backend
-      const response = await dashboardApi.sendChatMessage(currentInput)
+      const response = await dashboardApi.sendChatMessage(currentInput, currentChatId || undefined)
+
+      // Store chat_id for continuing the conversation
+      if (response.chat_id && !currentChatId) {
+        setCurrentChatId(response.chat_id)
+      }
 
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -199,6 +205,41 @@ export default function PatientDashboard() {
     } finally {
       setIsTyping(false)
     }
+  }
+
+  const loadChat = async (chatId: string) => {
+    try {
+      const chatHistory = await dashboardApi.getChatHistory(20)
+      const selectedChat = chatHistory.find(c => c.id === chatId)
+      if (selectedChat) {
+        setCurrentChatId(chatId)
+        // Convert messages to local format
+        const loadedMessages: Message[] = selectedChat.messages.map((m, i) => ({
+          id: `${chatId}-${i}`,
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: new Date(m.timestamp),
+        }))
+        setMessages(loadedMessages.length > 0 ? loadedMessages : [{
+          id: "1",
+          role: "assistant",
+          content: dashboardData?.welcome_message || "Hello! How can I help you today?",
+          timestamp: new Date(),
+        }])
+      }
+    } catch (error) {
+      console.error("Failed to load chat:", error)
+    }
+  }
+
+  const startNewChat = () => {
+    setCurrentChatId(null)
+    setMessages([{
+      id: "1",
+      role: "assistant",
+      content: dashboardData?.welcome_message || "Hello! How can I help you today?",
+      timestamp: new Date(),
+    }])
   }
 
   const getAIResponse = (query: string): string => {
@@ -626,6 +667,51 @@ export default function PatientDashboard() {
 
                 {/* Health Summary Sidebar */}
                 <div className="space-y-6">
+                  {/* Recent Chats Widget */}
+                  <div className="p-5 bg-card rounded-2xl border border-border/50">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-foreground flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4 text-primary" />
+                        Recent Chats
+                      </h3>
+                      <button
+                        onClick={startNewChat}
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        New Chat
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {recentChats.length > 0 ? (
+                        recentChats.slice(0, 3).map((chat) => (
+                          <div
+                            key={chat.id}
+                            onClick={() => loadChat(chat.id)}
+                            className={cn(
+                              "p-3 rounded-xl cursor-pointer transition-colors",
+                              currentChatId === chat.id
+                                ? "bg-primary/10 border border-primary/30"
+                                : "bg-secondary/30 hover:bg-secondary/50"
+                            )}
+                          >
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {chat.title || "Conversation"}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {chat.preview}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(chat.updated_at).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' })}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No previous chats</p>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Consultation Recordings Widget */}
                   <div className="p-5 bg-card rounded-2xl border border-border/50">
                     <div className="flex items-center justify-between mb-4">

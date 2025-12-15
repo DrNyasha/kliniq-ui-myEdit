@@ -16,6 +16,18 @@ class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
+        // Handle token expiry - 401 Unauthorized
+        if (response.status === 401) {
+            // Clear auth data from localStorage
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('kliniq_token');
+                localStorage.removeItem('kliniq_user');
+
+                // Redirect to login page
+                window.location.href = '/auth?expired=true';
+            }
+        }
+
         const errorData = await response.json().catch(() => ({}));
         throw new ApiError(
             response.status,

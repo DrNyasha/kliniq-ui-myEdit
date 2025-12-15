@@ -70,6 +70,15 @@ export interface UpcomingAppointmentsListResponse {
     appointments: UpcomingAppointmentResponse[]
 }
 
+export interface TranscriptionResponse {
+    text: string
+    language: string
+    original_language?: string
+    cached: boolean
+    translated: boolean
+    error?: string
+}
+
 // ============================================================================
 // API FUNCTIONS
 // ============================================================================
@@ -121,5 +130,21 @@ export const recordingsApi = {
     getUpcomingAppointments: async (): Promise<UpcomingAppointmentsListResponse> => {
         const token = await getToken()
         return apiClient.get<UpcomingAppointmentsListResponse>('/recordings/appointments', token)
+    },
+
+    /**
+     * Transcribe a recording with optional translation
+     */
+    transcribeRecording: async (
+        recordingId: string,
+        targetLanguage: string = 'english',
+        overrideLanguage?: string
+    ): Promise<TranscriptionResponse> => {
+        const token = await getToken()
+        let url = `/recordings/${recordingId}/transcribe?target_language=${targetLanguage}`
+        if (overrideLanguage) {
+            url += `&override_language=${overrideLanguage}`
+        }
+        return apiClient.post<TranscriptionResponse>(url, {}, token)
     },
 }
