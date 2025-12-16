@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
 import { useToast } from "@/hooks/use-toast"
 import { useClinicianRole } from "@/contexts/clinician-role-context"
+import { clinicianApi, ClinicianDashboardResponse, TriageCaseResponse, EscalatedQueryResponse } from "@/lib/clinician-api"
 import {
   Users,
   Clock,
@@ -193,14 +194,35 @@ export default function ClinicianDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<"all" | "pending" | "urgent">("all")
   const [searchQuery, setSearchQuery] = useState("")
-  const [triageCases, setTriageCases] = useState(mockTriageCases)
-  const [queries, setQueries] = useState(mockEscalatedQueries)
+  const [loading, setLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState<ClinicianDashboardResponse | null>(null)
+  const [triageCases, setTriageCases] = useState<TriageCaseResponse[]>([])
+  const [queries, setQueries] = useState<EscalatedQueryResponse[]>([])
   const { toast } = useToast()
   const { role } = useClinicianRole()
 
   useEffect(() => {
     setMounted(true)
+    fetchDashboard()
   }, [])
+
+  const fetchDashboard = async () => {
+    try {
+      const data = await clinicianApi.getDashboard()
+      setDashboardData(data)
+      setTriageCases(data.triage_cases || [])
+      setQueries(data.escalated_queries || [])
+    } catch (error) {
+      console.error("Failed to fetch clinician dashboard:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load dashboard data"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const navItems = [
     { icon: Home, label: "Dashboard", href: "/clinician", active: true },
@@ -213,14 +235,14 @@ export default function ClinicianDashboard() {
   const filteredCases = triageCases.filter((c) => {
     if (activeFilter === "pending" && c.status !== "pending") return false
     if (activeFilter === "urgent" && c.urgency !== "high") return false
-    if (searchQuery && !c.patientName.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    if (searchQuery && !c.patient_name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
 
   const filteredQueries = queries.filter((q) => {
     if (activeFilter === "pending" && q.status !== "pending") return false
     if (activeFilter === "urgent" && q.urgency !== "high") return false
-    if (searchQuery && !q.patientName.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    if (searchQuery && !q.patient_name.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
 
@@ -280,7 +302,7 @@ export default function ClinicianDashboard() {
         <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {/* Stats Overview */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
-            {stats[role].map((stat, index) => (
+            {(dashboardData?.stats || []).map((stat, index) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
@@ -292,7 +314,7 @@ export default function ClinicianDashboard() {
                 <div className="relative">
                   <div className="flex items-center justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <stat.icon className="w-5 h-5 text-primary" />
+                      <Clipboard className="w-5 h-5 text-primary" />
                     </div>
                     <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
@@ -356,7 +378,7 @@ export default function ClinicianDashboard() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: index * 0.05 }}
                         className="group relative p-5 rounded-2xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 cursor-pointer"
-                        onClick={() => window.location.href = `/clinician/patient/${triageCase.patientId}`}
+                        onClick={() => window.location.href = `/clinician/patient/${triageCase.patient_id}`}
                       >
                         {triageCase.urgency === "high" && (
                           <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
@@ -371,19 +393,19 @@ export default function ClinicianDashboard() {
                                   : "bg-primary/10 text-primary",
                               )}
                             >
-                              {triageCase.patientName
+                              {triageCase.patient_name
                                 .split(" ")
                                 .map((n) => n[0])
                                 .join("")}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold text-foreground">{triageCase.patientName}</h3>
-                                <span className="text-xs text-muted-foreground">{triageCase.patientId}</span>
+                                <h3 className="font-semibold text-foreground">{triageCase.patient_name}</h3>
+                                <span className="text-xs text-muted-foreground">{triageCase.patient_id}</span>
                                 <span
                                   className={cn(
                                     "px-2 py-0.5 rounded-full text-xs font-medium border",
-                                    urgencyStyles[triageCase.urgency],
+                                    urgencyStyles[triageCase.urgency as keyof typeof urgencyStyles],
                                   )}
                                 >
                                   {triageCase.urgency}
@@ -396,13 +418,13 @@ export default function ClinicianDashboard() {
                                   {triageCase.duration}
                                 </span>
                                 <span>{triageCase.language}</span>
-                                <span>{triageCase.submittedAt}</span>
+                                <span>{triageCase.submitted_at}</span>
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Link
-                              href={`/clinician/patient/${triageCase.patientId}`}
+                              href={`/clinician/patient/${triageCase.patient_id}`}
                               className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -426,7 +448,7 @@ export default function ClinicianDashboard() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ delay: index * 0.05 }}
                         className="group relative p-5 rounded-2xl bg-card border border-border/50 hover:border-primary/30 hover:shadow-md transition-all duration-300 cursor-pointer"
-                        onClick={() => window.location.href = `/clinician/patient/${query.patientId}`}
+                        onClick={() => window.location.href = `/clinician/patient/${query.patient_id}`}
                       >
                         {query.urgency === "high" && (
                           <div className="absolute -top-px -left-px -right-px h-1 bg-gradient-to-r from-red-500 via-red-400 to-red-500 rounded-t-2xl" />
@@ -441,36 +463,36 @@ export default function ClinicianDashboard() {
                                   : "bg-primary/10 text-primary",
                               )}
                             >
-                              {query.patientName
+                              {query.patient_name
                                 .split(" ")
                                 .map((n) => n[0])
                                 .join("")}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold text-foreground">{query.patientName}</h3>
-                                <span className="text-xs text-muted-foreground">{query.patientId}</span>
+                                <h3 className="font-semibold text-foreground">{query.patient_name}</h3>
+                                <span className="text-xs text-muted-foreground">{query.patient_id}</span>
                                 <span
                                   className={cn(
                                     "px-2 py-0.5 rounded-full text-xs font-medium border",
-                                    urgencyStyles[query.urgency],
+                                    urgencyStyles[query.urgency as keyof typeof urgencyStyles],
                                   )}
                                 >
                                   {query.urgency}
                                 </span>
                               </div>
                               <p className="text-sm text-foreground mt-1 font-medium">"{query.question}"</p>
-                              {query.nurseNote && (
+                              {query.nurse_note && (
                                 <p className="text-xs text-muted-foreground mt-1 italic">
-                                  Nurse note: {query.nurseNote}
+                                  Nurse note: {query.nurse_note}
                                 </p>
                               )}
-                              <p className="text-xs text-muted-foreground mt-2">{query.submittedAt}</p>
+                              <p className="text-xs text-muted-foreground mt-2">{query.submitted_at}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <Link
-                              href={`/clinician/patient/${query.patientId}`}
+                              href={`/clinician/patient/${query.patient_id}`}
                               className="p-2 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
                               onClick={(e) => e.stopPropagation()}
                             >
@@ -512,24 +534,24 @@ export default function ClinicianDashboard() {
 
                   <div className="mb-4">
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-foreground">{pointsData.current}</span>
-                      <span className="text-sm text-muted-foreground">/ {pointsData.goal}</span>
+                      <span className="text-4xl font-bold text-foreground">{dashboardData?.points?.current || 0}</span>
+                      <span className="text-sm text-muted-foreground">/ {dashboardData?.points?.goal || 500}</span>
                     </div>
                     <div className="mt-2 h-2 bg-secondary rounded-full overflow-hidden">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: `${(pointsData.current / pointsData.goal) * 100}%` }}
+                        animate={{ width: `${((dashboardData?.points?.current || 0) / (dashboardData?.points?.goal || 500)) * 100}%` }}
                         transition={{ duration: 1, delay: 0.5 }}
                         className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {pointsData.goal - pointsData.current} points to next reward
+                      {(dashboardData?.points?.goal || 500) - (dashboardData?.points?.current || 0)} points to next reward
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    {pointsData.breakdown.map((item) => (
+                    {(dashboardData?.points?.breakdown || []).map((item) => (
                       <div key={item.action} className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{item.action}</span>
                         <span className="font-medium text-foreground">+{item.points}</span>
@@ -568,11 +590,7 @@ export default function ClinicianDashboard() {
               <div className="p-5 rounded-2xl bg-card border border-border/50">
                 <h3 className="font-semibold text-foreground mb-4">Recent Activity</h3>
                 <div className="space-y-4">
-                  {[
-                    { action: "Verified triage for Adebayo O.", time: "2 mins ago", points: "+5" },
-                    { action: "Answered query from Chioma E.", time: "15 mins ago", points: "+10" },
-                    { action: "Updated notes for Ibrahim M.", time: "1 hour ago", points: "+15" },
-                  ].map((activity, i) => (
+                  {(dashboardData?.recent_activity || []).map((activity, i) => (
                     <div key={i} className="flex items-start gap-3">
                       <div className="w-2 h-2 rounded-full bg-primary mt-2 shrink-0" />
                       <div className="flex-1 min-w-0">

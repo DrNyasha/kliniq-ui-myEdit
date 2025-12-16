@@ -8,7 +8,8 @@ import { ClinicianSidebar } from "@/components/clinician-sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { useToast } from "@/hooks/use-toast"
-import { useClinicianRole } from "@/contexts/clinician-role-context"
+import { useAuth } from "@/contexts/auth-context"
+import { clinicianApi, AppointmentRequestItem, DoctorListItem } from "@/lib/clinician-api"
 import { cn } from "@/lib/utils"
 import {
     Menu,
@@ -30,165 +31,109 @@ import {
     Building2,
 } from "lucide-react"
 
-interface AppointmentRequest {
-    id: string
-    patientName: string
-    patientAge: number
-    patientPhone: string
-    patientEmail: string
-    hospital: string
-    department: string
-    reason: string
-    preferredType: "video" | "in-person"
-    urgency: "low" | "normal" | "urgent"
-    status: "pending" | "approved" | "rejected"
-    submittedAt: string
-    submittedDate: string
-}
-
-const mockRequests: AppointmentRequest[] = [
-    {
-        id: "1",
-        patientName: "Adebayo Ogundimu",
-        patientAge: 34,
-        patientPhone: "+234 801 234 5678",
-        patientEmail: "adebayo@email.com",
-        hospital: "Lagos University Teaching Hospital",
-        department: "General Medicine",
-        reason: "Persistent headaches for the past week, accompanied by mild fever. Need a general checkup.",
-        preferredType: "in-person",
-        urgency: "normal",
-        status: "pending",
-        submittedAt: "2 hours ago",
-        submittedDate: "Dec 9, 2025",
-    },
-    {
-        id: "2",
-        patientName: "Chioma Nwankwo",
-        patientAge: 28,
-        patientPhone: "+234 802 345 6789",
-        patientEmail: "chioma@email.com",
-        hospital: "Lagos University Teaching Hospital",
-        department: "Cardiology",
-        reason: "Follow-up consultation for heart condition monitoring. Blood pressure has been fluctuating.",
-        preferredType: "video",
-        urgency: "urgent",
-        status: "pending",
-        submittedAt: "4 hours ago",
-        submittedDate: "Dec 9, 2025",
-    },
-    {
-        id: "3",
-        patientName: "Emeka Okoro",
-        patientAge: 45,
-        patientPhone: "+234 803 456 7890",
-        patientEmail: "emeka@email.com",
-        hospital: "Lagos University Teaching Hospital",
-        department: "Dermatology",
-        reason: "Skin rash that appeared 3 days ago. Spreading to arms and chest.",
-        preferredType: "in-person",
-        urgency: "normal",
-        status: "pending",
-        submittedAt: "6 hours ago",
-        submittedDate: "Dec 9, 2025",
-    },
-    {
-        id: "4",
-        patientName: "Fatima Aliyu",
-        patientAge: 52,
-        patientPhone: "+234 804 567 8901",
-        patientEmail: "fatima@email.com",
-        hospital: "Lagos University Teaching Hospital",
-        department: "General Medicine",
-        reason: "Annual health checkup and routine blood tests.",
-        preferredType: "in-person",
-        urgency: "low",
-        status: "pending",
-        submittedAt: "1 day ago",
-        submittedDate: "Dec 8, 2025",
-    },
-    {
-        id: "5",
-        patientName: "Obinna Eze",
-        patientAge: 39,
-        patientPhone: "+234 805 678 9012",
-        patientEmail: "obinna@email.com",
-        hospital: "Lagos University Teaching Hospital",
-        department: "Orthopedics",
-        reason: "Lower back pain that started after lifting heavy objects. Difficulty walking.",
-        preferredType: "in-person",
-        urgency: "urgent",
-        status: "pending",
-        submittedAt: "30 minutes ago",
-        submittedDate: "Dec 9, 2025",
-    },
-]
-
-const mockDoctors = [
-    { id: "1", name: "Dr. Oluwaseun Adeyemi", specialty: "General Medicine" },
-    { id: "2", name: "Dr. Amara Obi", specialty: "Cardiology" },
-    { id: "3", name: "Dr. Chidinma Nwosu", specialty: "Dermatology" },
-    { id: "4", name: "Dr. Yusuf Ibrahim", specialty: "Orthopedics" },
-    { id: "5", name: "Dr. Grace Ojo", specialty: "Pediatrics" },
-]
+// Using AppointmentRequestItem from API client
 
 export default function RequestsPage() {
     const [mounted, setMounted] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const [requests, setRequests] = useState(mockRequests)
+    const [requests, setRequests] = useState<AppointmentRequestItem[]>([])
+    const [loading, setLoading] = useState(true)
+    const [stats, setStats] = useState({ total: 0, pending: 0, urgent: 0 })
     const [searchQuery, setSearchQuery] = useState("")
     const [urgencyFilter, setUrgencyFilter] = useState<"all" | "low" | "normal" | "urgent">("all")
     const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending")
-    const [selectedRequest, setSelectedRequest] = useState<AppointmentRequest | null>(null)
+    const [selectedRequest, setSelectedRequest] = useState<AppointmentRequestItem | null>(null)
     const [showScheduleModal, setShowScheduleModal] = useState(false)
     const [showRejectModal, setShowRejectModal] = useState(false)
-    const [requestToReject, setRequestToReject] = useState<AppointmentRequest | null>(null)
+    const [requestToReject, setRequestToReject] = useState<AppointmentRequestItem | null>(null)
     const [rejectReason, setRejectReason] = useState("")
+    const [doctors, setDoctors] = useState<DoctorListItem[]>([])
     const [selectedDoctor, setSelectedDoctor] = useState("")
     const [selectedDate, setSelectedDate] = useState("")
     const [selectedTime, setSelectedTime] = useState("")
     const { toast } = useToast()
-    const { role } = useClinicianRole()
+    const { user } = useAuth()
 
     useEffect(() => {
         setMounted(true)
+        fetchRequests()
     }, [])
 
+    const fetchRequests = async () => {
+        try {
+            setLoading(true)
+            const response = await clinicianApi.getRequests(statusFilter === "all" ? "pending" : statusFilter)
+            setRequests(response.requests)
+            setStats({ total: response.total, pending: response.pending, urgent: response.urgent })
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to load appointment requests",
+                variant: "destructive",
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (mounted) {
+            fetchRequests()
+        }
+    }, [statusFilter])
+
     const filteredRequests = requests.filter((req) => {
-        const matchesSearch = req.patientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        const matchesSearch = req.patient_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             req.department.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesUrgency = urgencyFilter === "all" || req.urgency === urgencyFilter
-        const matchesStatus = statusFilter === "all" || req.status === statusFilter
-        return matchesSearch && matchesUrgency && matchesStatus
+        return matchesSearch && matchesUrgency
     })
 
-    const handleApproveRequest = (request: AppointmentRequest) => {
+    const handleApproveRequest = async (request: AppointmentRequestItem) => {
         setSelectedRequest(request)
-        setShowScheduleModal(true)
-    }
-
-    const handleRejectRequest = (request: AppointmentRequest) => {
-        setRequestToReject(request)
-        setShowRejectModal(true)
-    }
-
-    const confirmReject = () => {
-        if (requestToReject) {
-            setRequests(requests.map(req =>
-                req.id === requestToReject.id ? { ...req, status: "rejected" as const } : req
-            ))
-            setShowRejectModal(false)
-            setRequestToReject(null)
-            setRejectReason("")
+        // Fetch doctors for this hospital
+        try {
+            const doctorsList = await clinicianApi.getDoctorsByHospital(request.hospital_id)
+            setDoctors(doctorsList)
+            setShowScheduleModal(true)
+        } catch (error) {
             toast({
-                title: "Request Rejected",
-                description: `Appointment request from ${requestToReject.patientName} has been declined.`,
+                title: "Error",
+                description: "Failed to load doctors list",
                 variant: "destructive",
             })
         }
     }
 
-    const handleConfirmSchedule = () => {
+    const handleRejectRequest = (request: AppointmentRequestItem) => {
+        setRequestToReject(request)
+        setShowRejectModal(true)
+    }
+
+    const confirmReject = async () => {
+        if (requestToReject) {
+            try {
+                await clinicianApi.rejectRequest(requestToReject.id, { rejection_reason: rejectReason })
+                setShowRejectModal(false)
+                setRequestToReject(null)
+                setRejectReason("")
+                toast({
+                    title: "Request Rejected",
+                    description: `Appointment request from ${requestToReject.patient_name} has been declined.`,
+                    variant: "destructive",
+                })
+                fetchRequests() // Refresh list
+            } catch (error) {
+                toast({
+                    title: "Error",
+                    description: "Failed to reject request",
+                    variant: "destructive",
+                })
+            }
+        }
+    }
+
+    const handleConfirmSchedule = async () => {
         if (!selectedDoctor || !selectedDate || !selectedTime) {
             toast({
                 title: "Missing Information",
@@ -199,18 +144,29 @@ export default function RequestsPage() {
         }
 
         if (selectedRequest) {
-            setRequests(requests.map(req =>
-                req.id === selectedRequest.id ? { ...req, status: "approved" as const } : req
-            ))
-            setShowScheduleModal(false)
-            setSelectedRequest(null)
-            setSelectedDoctor("")
-            setSelectedDate("")
-            setSelectedTime("")
-            toast({
-                title: "Appointment Scheduled!",
-                description: `Appointment confirmed for ${selectedRequest.patientName} with ${selectedDoctor}.`,
-            })
+            try {
+                await clinicianApi.approveRequest(selectedRequest.id, {
+                    clinician_id: selectedDoctor,
+                    scheduled_date: selectedDate,
+                    scheduled_time: selectedTime,
+                })
+                setShowScheduleModal(false)
+                setSelectedRequest(null)
+                setSelectedDoctor("")
+                setSelectedDate("")
+                setSelectedTime("")
+                toast({
+                    title: "Appointment Scheduled!",
+                    description: `Appointment confirmed for ${selectedRequest.patient_name}.`,
+                })
+                fetchRequests() // Refresh list
+            } catch (error) {
+                toast({
+                    title: "Error",
+                    description: "Failed to schedule appointment",
+                    variant: "destructive",
+                })
+            }
         }
     }
 
@@ -225,8 +181,8 @@ export default function RequestsPage() {
 
     if (!mounted) return null
 
-    // Redirect doctors to schedule page
-    if (role === "doctor") {
+    // Redirect non-nurses
+    if (user?.role?.toLowerCase() === "doctor") {
         return (
             <div className="min-h-screen bg-background flex">
                 <ClinicianSidebar activePath="/clinician/requests" sidebarOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -287,7 +243,7 @@ export default function RequestsPage() {
                                         <Clock className="w-5 h-5 text-amber-500" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-bold text-foreground">{requests.filter(r => r.status === "pending").length}</p>
+                                        <p className="text-2xl font-bold text-foreground">{stats.pending}</p>
                                         <p className="text-xs text-muted-foreground">Pending</p>
                                     </div>
                                 </div>
@@ -298,7 +254,7 @@ export default function RequestsPage() {
                                         <AlertCircle className="w-5 h-5 text-red-500" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-bold text-foreground">{requests.filter(r => r.urgency === "urgent" && r.status === "pending").length}</p>
+                                        <p className="text-2xl font-bold text-foreground">{stats.urgent}</p>
                                         <p className="text-xs text-muted-foreground">Urgent</p>
                                     </div>
                                 </div>
@@ -320,7 +276,7 @@ export default function RequestsPage() {
                                         <Calendar className="w-5 h-5 text-primary" />
                                     </div>
                                     <div>
-                                        <p className="text-2xl font-bold text-foreground">{requests.length}</p>
+                                        <p className="text-2xl font-bold text-foreground">{stats.total}</p>
                                         <p className="text-xs text-muted-foreground">Total Today</p>
                                     </div>
                                 </div>
@@ -389,8 +345,8 @@ export default function RequestsPage() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                        <h3 className="font-semibold text-foreground">{request.patientName}</h3>
-                                                        <span className="text-sm text-muted-foreground">({request.patientAge} yrs)</span>
+                                                        <h3 className="font-semibold text-foreground">{request.patient_name}</h3>
+                                                        <span className="text-sm text-muted-foreground">({request.patient_age} yrs)</span>
                                                         <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium border", getUrgencyColor(request.urgency))}>
                                                             {request.urgency}
                                                         </span>
@@ -408,12 +364,12 @@ export default function RequestsPage() {
                                                             {request.department}
                                                         </span>
                                                         <span className="flex items-center gap-1">
-                                                            {request.preferredType === "video" ? <Video className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}
-                                                            {request.preferredType === "video" ? "Video Call" : "In-Person"}
+                                                            {request.preferred_type === "video" ? <Video className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}
+                                                            {request.preferred_type === "video" ? "Video Call" : "In-Person"}
                                                         </span>
                                                         <span className="flex items-center gap-1">
                                                             <Clock className="w-3 h-3" />
-                                                            {request.submittedAt}
+                                                            {request.submitted_at}
                                                         </span>
                                                     </div>
                                                     <p className="text-sm text-foreground bg-secondary/30 p-3 rounded-xl">
@@ -491,13 +447,13 @@ export default function RequestsPage() {
                                         <User className="w-5 h-5 text-primary" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-foreground">{selectedRequest.patientName}</p>
+                                        <p className="font-medium text-foreground">{selectedRequest.patient_name}</p>
                                         <p className="text-sm text-muted-foreground">{selectedRequest.department}</p>
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                                    <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{selectedRequest.patientPhone}</span>
-                                    <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{selectedRequest.patientEmail}</span>
+                                    <span className="flex items-center gap-1"><Phone className="w-3 h-3" />{selectedRequest.patient_phone}</span>
+                                    <span className="flex items-center gap-1"><Mail className="w-3 h-3" />{selectedRequest.patient_email}</span>
                                 </div>
                             </div>
 
@@ -511,13 +467,11 @@ export default function RequestsPage() {
                                         className="w-full px-4 py-3 rounded-xl border border-border bg-background text-foreground"
                                     >
                                         <option value="">Select a doctor...</option>
-                                        {mockDoctors
-                                            .filter(d => d.specialty === selectedRequest.department || selectedRequest.department === "General Medicine")
-                                            .map((doctor) => (
-                                                <option key={doctor.id} value={doctor.name}>
-                                                    {doctor.name} - {doctor.specialty}
-                                                </option>
-                                            ))}
+                                        {doctors.map((doctor) => (
+                                            <option key={doctor.id} value={doctor.id}>
+                                                {doctor.full_name}{doctor.specialty && ` - ${doctor.specialty}`}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
@@ -542,7 +496,7 @@ export default function RequestsPage() {
                                 </div>
                                 <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
                                     <p className="text-xs text-foreground">
-                                        <strong>Appointment Type:</strong> {selectedRequest.preferredType === "video" ? "Video Call" : "In-Person"}
+                                        <strong>Appointment Type:</strong> {selectedRequest.preferred_type === "video" ? "Video Call" : "In-Person"}
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
                                         Patient will be notified once the appointment is confirmed.
@@ -599,7 +553,7 @@ export default function RequestsPage() {
                             </div>
 
                             <div className="p-4 rounded-xl bg-secondary/30 mb-4">
-                                <p className="text-sm text-foreground"><strong>Patient:</strong> {requestToReject.patientName}</p>
+                                <p className="text-sm text-foreground"><strong>Patient:</strong> {requestToReject.patient_name}</p>
                                 <p className="text-sm text-muted-foreground mt-1"><strong>Department:</strong> {requestToReject.department}</p>
                                 <p className="text-sm text-muted-foreground mt-1"><strong>Reason:</strong> {requestToReject.reason}</p>
                             </div>

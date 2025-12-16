@@ -8,6 +8,8 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
+import { useAuth } from "@/contexts/auth-context"
+import { clinicianApi } from "@/lib/clinician-api"
 import {
     Settings as SettingsIcon,
     Bell,
@@ -29,15 +31,34 @@ export default function ClinicianSettingsPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [isEditingProfile, setIsEditingProfile] = useState(false)
     const [recordingEnabled, setRecordingEnabled] = useState(true)
+    const [loading, setLoading] = useState(true)
+    const [hospitalName, setHospitalName] = useState<string | null>(null)
     const [notifications, setNotifications] = useState({
         newPatients: true,
         queryAlerts: true,
         pointsMilestones: true,
     })
+    const { user } = useAuth()
 
     useEffect(() => {
         setMounted(true)
+        fetchProfileData()
     }, [])
+
+    const fetchProfileData = async () => {
+        try {
+            setLoading(true)
+            const dashboardData = await clinicianApi.getDashboard()
+            setHospitalName(dashboardData.hospital_name || null)
+        } catch (error) {
+            console.error('Failed to fetch profile data:', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fullName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : ''
+    const role = user?.role?.toLowerCase() === 'doctor' ? 'Doctor' : 'Nurse'
 
     if (!mounted) return null
 
@@ -99,24 +120,26 @@ export default function ClinicianSettingsPage() {
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Full Name</label>
-                                    <Input defaultValue="Dr. Oluwaseun Adeyemi" className="rounded-xl" disabled={!isEditingProfile} />
+                                    <Input value={fullName || ''} className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">Specialty</label>
-                                    <Input defaultValue="General Medicine" className="rounded-xl" disabled={!isEditingProfile} />
+                                    <label className="block text-sm font-medium text-foreground mb-2">Role</label>
+                                    <Input value={role} className="rounded-xl" disabled />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">License Number</label>
-                                    <Input defaultValue="MED-2024-5678" className="rounded-xl" disabled={!isEditingProfile} />
+                                    <label className="block text-sm font-medium text-foreground mb-2">Email</label>
+                                    <Input value={user?.email || ''} className="rounded-xl" disabled />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">Phone Number</label>
-                                    <Input type="tel" defaultValue="+234 802 345 6789" className="rounded-xl" disabled={!isEditingProfile} />
+                                    <Input type="tel" value={user?.phone || ''} className="rounded-xl" disabled={!isEditingProfile} />
                                 </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-foreground mb-2">Hospital/Clinic</label>
-                                    <Input defaultValue="Lagos General Hospital" className="rounded-xl" disabled={!isEditingProfile} />
-                                </div>
+                                {hospitalName && (
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-foreground mb-2">Hospital/Clinic</label>
+                                        <Input value={hospitalName} className="rounded-xl" disabled />
+                                    </div>
+                                )}
                             </div>
                             {isEditingProfile && (
                                 <div className="mt-6 flex justify-end gap-3">

@@ -10,6 +10,7 @@ import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { ClinicianSidebar } from "@/components/clinician-sidebar"
 import { useToast } from "@/hooks/use-toast"
+import { clinicianApi, PatientListItem } from "@/lib/clinician-api"
 import {
     Users,
     Clock,
@@ -30,93 +31,40 @@ import {
     AlertTriangle,
 } from "lucide-react"
 
-interface Patient {
-    id: string
-    name: string
-    patientId: string
-    age: number
-    gender: string
-    lastVisit: string
-    status: "active" | "pending" | "completed"
-    urgency: "low" | "medium" | "high"
-    condition: string
-    avatar: string
-}
-
-const mockPatients: Patient[] = [
-    {
-        id: "1",
-        name: "Adebayo Ogundimu",
-        patientId: "KLQ-2847",
-        age: 45,
-        gender: "Male",
-        lastVisit: "2 days ago",
-        status: "active",
-        urgency: "medium",
-        condition: "Tension headache",
-        avatar: "AO",
-    },
-    {
-        id: "2",
-        name: "Chioma Eze",
-        patientId: "KLQ-3921",
-        age: 32,
-        gender: "Female",
-        lastVisit: "1 hour ago",
-        status: "pending",
-        urgency: "high",
-        condition: "Chest pain",
-        avatar: "CE",
-    },
-    {
-        id: "3",
-        name: "Ibrahim Musa",
-        patientId: "KLQ-1573",
-        age: 28,
-        gender: "Male",
-        lastVisit: "5 days ago",
-        status: "completed",
-        urgency: "low",
-        condition: "Common cold",
-        avatar: "IM",
-    },
-    {
-        id: "4",
-        name: "Funke Adeoye",
-        patientId: "KLQ-4482",
-        age: 51,
-        gender: "Female",
-        lastVisit: "1 day ago",
-        status: "active",
-        urgency: "medium",
-        condition: "Arthritis",
-        avatar: "FA",
-    },
-]
-
 export default function PatientsPage() {
     const [mounted, setMounted] = useState(false)
     const [sidebarOpen, setSidebarOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
     const [statusFilter, setStatusFilter] = useState<"all" | "active" | "pending" | "completed">("all")
+    const [loading, setLoading] = useState(true)
+    const [patients, setPatients] = useState<PatientListItem[]>([])
     const { toast } = useToast()
 
     useEffect(() => {
         setMounted(true)
+        fetchPatients()
     }, [])
 
-    const navItems = [
-        { icon: Home, label: "Dashboard", href: "/clinician" },
-        { icon: Users, label: "Patients", href: "/clinician/patients", active: true, badge: 12 },
-        { icon: Calendar, label: "Schedule", href: "/clinician/schedule" },
-        { icon: Award, label: "Points", href: "/clinician/points", badge: "New" },
-        { icon: Settings, label: "Settings", href: "/clinician/settings" },
-    ]
+    const fetchPatients = async () => {
+        try {
+            setLoading(true)
+            const response = await clinicianApi.getPatients()
+            setPatients(response.patients)
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "Failed to load patients. Please try again.",
+                variant: "destructive",
+            })
+        } finally {
+            setLoading(false)
+        }
+    }
 
-    const filteredPatients = mockPatients.filter((patient) => {
+    const filteredPatients = patients.filter((patient) => {
         const matchesSearch =
             patient.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            patient.patientId.toLowerCase().includes(searchQuery.toLowerCase())
+            patient.patient_id.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesStatus = statusFilter === "all" || patient.status === statusFilter
         return matchesSearch && matchesStatus
     })
@@ -215,12 +163,12 @@ export default function PatientsPage() {
                                                 {patient.urgency}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-muted-foreground mb-2">{patient.patientId}</p>
+                                        <p className="text-sm text-muted-foreground mb-2">{patient.patient_id}</p>
                                         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
                                             <span>{patient.age}y • {patient.gender}</span>
                                             <span className="flex items-center gap-1">
                                                 <Clock className="w-3 h-3" />
-                                                {patient.lastVisit}
+                                                {patient.last_visit}
                                             </span>
                                         </div>
                                         <p className="text-sm text-foreground mb-3">
@@ -229,7 +177,7 @@ export default function PatientsPage() {
                                         </p>
                                         <div className="flex items-center gap-2">
                                             <Link
-                                                href={`/clinician/patient/${patient.patientId}`}
+                                                href={`/clinician/patient/${patient.id}`}
                                                 className="flex-1"
                                             >
                                                 <Button size="sm" className="w-full rounded-xl">
@@ -252,11 +200,20 @@ export default function PatientsPage() {
                         ))}
                     </div>
 
-                    {filteredPatients.length === 0 && (
+                    {loading && (
+                        <div className="text-center py-12">
+                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                            <p className="text-sm text-muted-foreground">Loading patients...</p>
+                        </div>
+                    )}
+
+                    {!loading && filteredPatients.length === 0 && (
                         <div className="text-center py-12">
                             <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                             <h3 className="text-lg font-semibold text-foreground mb-2">No patients found</h3>
-                            <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+                            <p className="text-sm text-muted-foreground">
+                                {patients.length === 0 ? "No active triage cases" : "Try adjusting your search or filters"}
+                            </p>
                         </div>
                     )}
                 </div>

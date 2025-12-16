@@ -1,6 +1,7 @@
 "use client"
 
 import { ClinicianRoleProvider } from "@/contexts/clinician-role-context"
+import { RequireClinician } from "@/components/require-role"
 
 export default function ClinicianLayout({
     children,
@@ -8,8 +9,10 @@ export default function ClinicianLayout({
     children: React.ReactNode
 }) {
     return (
-        <ClinicianRoleProvider>
-            {children}
-        </ClinicianRoleProvider>
+        <RequireClinician>
+            <ClinicianRoleProvider>
+                {children}
+            </ClinicianRoleProvider>
+        </RequireClinician>
     )
 }

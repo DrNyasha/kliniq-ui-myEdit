@@ -1,13 +1,14 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
+import { clinicianApi } from "@/lib/clinician-api"
 import { Home, Users, Calendar, Award, Settings, LogOut, Star, X, MessageSquare, ClipboardList } from "lucide-react"
-import { useClinicianRole } from "@/contexts/clinician-role-context"
 
 const doctorNavItems = [
     { icon: Home, label: "Dashboard", href: "/clinician" },
@@ -41,17 +42,44 @@ export function ClinicianSidebar({
     onClose
 }: ClinicianSidebarProps) {
     const router = useRouter()
-    const { logout } = useAuth()
-    const { role, setRole, isLoading } = useClinicianRole()
+    const { user, logout, isLoading } = useAuth()
+    const [badgeCounts, setBadgeCounts] = useState({ patients: 0, requests: 0 })
+
+    // Determine role and navigation items
+    const role = user?.role?.toLowerCase() === 'doctor' ? 'doctor' :
+        user?.role?.toLowerCase() === 'nurse' ? 'nurse' : 'nurse'
     const navItems = role === "nurse" ? nurseNavItems : doctorNavItems
-    const patientBadge = role === "nurse" ? 12 : 7
+
+    // Get user display info
+    const userInitials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : 'U'
+    const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'User'
+    const userTitle = role === 'nurse' ? 'Triage Specialist' : 'General Physician'
+
+    // Fetch sidebar counts
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                const counts = await clinicianApi.getSidebarCounts()
+                setBadgeCounts({
+                    patients: counts.patients_count,
+                    requests: counts.requests_count
+                })
+            } catch (error) {
+                console.error('Failed to fetch sidebar counts:', error)
+            }
+        }
+
+        if (user) {
+            fetchCounts()
+        }
+    }, [user])
 
     const handleLogout = () => {
         logout()
         router.push("/auth")
     }
 
-    const SidebarContent = ({ layoutId }: { layoutId: string }) => (
+    const SidebarContent = () => (
         <>
             {/* Logo */}
             <Link href="/" className="flex items-center gap-3 mb-8 group">
@@ -64,41 +92,16 @@ export function ClinicianSidebar({
                 <span className="text-xl font-bold text-foreground">Kliniq</span>
             </Link>
 
-            {/* Role Switcher */}
-            <div className="relative p-1.5 bg-secondary/50 rounded-2xl mb-6">
-                <div className="grid grid-cols-2 gap-1">
-                    {(["nurse", "doctor"] as const).map((r) => (
-                        <button
-                            key={r}
-                            onClick={() => setRole(r)}
-                            className={cn(
-                                "relative px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300",
-                                role === r ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            {role === r && (
-                                <motion.div
-                                    layoutId={layoutId}
-                                    className="absolute inset-0 bg-gradient-to-r from-primary to-primary/80 rounded-xl"
-                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                />
-                            )}
-                            <span className="relative capitalize">{r}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
             {/* Profile Card */}
             <div className="relative p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-card to-accent/5 border border-border/50 mb-8 overflow-hidden">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-full" />
                 <div className="relative flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
-                        {role === "nurse" ? "NA" : "DR"}
+                        {userInitials}
                     </div>
                     <div>
-                        <p className="font-semibold text-foreground">{role === "nurse" ? "Nurse Amaka" : "Dr. Oluwaseun"}</p>
-                        <p className="text-xs text-muted-foreground">{role === "nurse" ? "Triage Specialist" : "General Physician"}</p>
+                        <p className="font-semibold text-foreground">{role === 'doctor' ? 'Dr. ' : ''}{userName}</p>
+                        <p className="text-xs text-muted-foreground">{userTitle}</p>
                     </div>
                 </div>
                 <div className="mt-4 flex items-center gap-3">
@@ -119,8 +122,8 @@ export function ClinicianSidebar({
             <nav className="flex-1 space-y-2">
                 {navItems.map((item) => {
                     const isActive = activePath === item.href
-                    const badge = item.href === "/clinician/patients" ? patientBadge :
-                        item.href === "/clinician/requests" ? 5 : item.badge
+                    const badge = item.href === "/clinician/patients" ? badgeCounts.patients :
+                        item.href === "/clinician/requests" ? badgeCounts.requests : item.badge
 
                     return (
                         <Link
@@ -179,7 +182,7 @@ export function ClinicianSidebar({
         <>
             {/* Desktop Sidebar */}
             <aside className="hidden lg:flex flex-col w-72 bg-card border-r border-border/50 p-6">
-                <SidebarContent layoutId="roleIndicator" />
+                <SidebarContent />
             </aside>
 
             {/* Mobile Sidebar */}
@@ -212,7 +215,7 @@ export function ClinicianSidebar({
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
-                            <SidebarContent layoutId="mobileRoleIndicator" />
+                            <SidebarContent />
                         </motion.aside>
                     </>
                 )}

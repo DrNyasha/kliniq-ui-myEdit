@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsDropdown } from "@/components/notifications-dropdown"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { clinicianApi, PatientDetailResponse } from "@/lib/clinician-api"
 import {
   ArrowLeft,
   Phone,
@@ -43,184 +44,6 @@ import {
   User,
 } from "lucide-react"
 
-interface PatientData {
-  id: string
-  name: string
-  age: number
-  gender: string
-  phone: string
-  location: string
-  language: string
-  linkedSince: string
-  avatar: string
-  bloodType: string
-  allergies: string[]
-}
-
-interface TriageData {
-  symptoms: string
-  duration: string
-  urgency: "low" | "medium" | "high"
-  submittedAt: string
-  vitalSigns?: {
-    temperature?: string
-    bloodPressure?: string
-    heartRate?: string
-    oxygenLevel?: string
-  }
-  aiSummary: string
-  aiRecommendation: string
-}
-
-interface MedicalNote {
-  id: string
-  date: string
-  diagnosis: string
-  medications: string[]
-  lifestyle: string[]
-  followUp: string
-  doctor: string
-}
-
-interface PendingQuery {
-  id: string
-  question: string
-  submittedAt: string
-  aiDraft: string
-  status: "pending" | "answered"
-}
-
-interface HistoryItem {
-  id: string
-  type: "consultation" | "prescription" | "test" | "diagnosis"
-  title: string
-  doctor: string
-  date: string
-  description: string
-  status?: string
-  typeIcon: any
-}
-
-const mockPatient: PatientData = {
-  id: "KLQ-2847",
-  name: "Adebayo Ogundimu",
-  age: 58,
-  gender: "Male",
-  phone: "+234 801 234 5678",
-  location: "Ikeja, Lagos",
-  language: "Yoruba",
-  linkedSince: "March 2024",
-  avatar: "AO",
-  bloodType: "O+",
-  allergies: ["Penicillin", "Dust"],
-}
-
-const mockTriage: TriageData = {
-  symptoms:
-    "Persistent headache for 3 days, mild fever (38.2°C), general fatigue and body weakness. Patient mentions increased stress at work recently.",
-  duration: "3 days",
-  urgency: "medium",
-  submittedAt: "Today, 10:32 AM",
-  vitalSigns: {
-    temperature: "38.2°C",
-    bloodPressure: "145/92 mmHg",
-    heartRate: "88 bpm",
-    oxygenLevel: "97%",
-  },
-  aiSummary:
-    "Patient presents with tension-type headache symptoms accompanied by low-grade fever and fatigue. The elevated blood pressure reading may be related to stress or underlying hypertension that requires monitoring. No red flags for serious neurological conditions identified.",
-  aiRecommendation:
-    "Recommend: (1) Basic pain management with Paracetamol 1g every 8 hours, (2) Hydration and rest, (3) Follow-up BP check in 1 week, (4) Consider stress management counseling if symptoms persist.",
-}
-
-const mockNotes: MedicalNote[] = [
-  {
-    id: "N001",
-    date: "Nov 15, 2024",
-    diagnosis: "Tension Headache with Hypertensive Tendency",
-    medications: ["Paracetamol 1g - Every 8 hours for 5 days", "Amlodipine 5mg - Once daily"],
-    lifestyle: ["Reduce salt intake", "30 mins daily walking", "Stress management techniques"],
-    followUp: "Nov 22, 2024",
-    doctor: "Dr. Oluwaseun",
-  },
-  {
-    id: "N002",
-    date: "Oct 28, 2024",
-    diagnosis: "Upper Respiratory Tract Infection",
-    medications: ["Amoxicillin 500mg - 3 times daily for 7 days", "Vitamin C 1000mg - Once daily"],
-    lifestyle: ["Plenty of fluids", "Rest", "Avoid cold drinks"],
-    followUp: "Nov 5, 2024",
-    doctor: "Dr. Amaka",
-  },
-]
-
-const mockQueries: PendingQuery[] = [
-  {
-    id: "Q001",
-    question: "Can I take the medication with my herbal supplements (agbo)?",
-    submittedAt: "2 hours ago",
-    aiDraft:
-      "Based on the prescribed Paracetamol and Amlodipine, there are no known major interactions with common herbal preparations. However, I recommend spacing them at least 2 hours apart for optimal absorption. If the herbal preparation contains any stimulants, please consult before combining with the blood pressure medication.",
-    status: "pending",
-  },
-  {
-    id: "Q002",
-    question: "My head still hurts even after taking the medicine. What should I do?",
-    submittedAt: "45 mins ago",
-    aiDraft:
-      "If the headache persists after taking Paracetamol for more than 24 hours, please ensure you are taking the medication with food and drinking plenty of water (at least 8 glasses daily). If the pain worsens or you experience vision changes, numbness, or severe dizziness, please come to the hospital immediately.",
-    status: "pending",
-  },
-]
-
-const mockHistory: HistoryItem[] = [
-  {
-    id: "1",
-    type: "consultation",
-    title: "General Checkup",
-    doctor: "Dr. Oluwaseun Adeyemi",
-    date: "Nov 28, 2024",
-    description: "Routine health checkup. Blood pressure normal, recommended continued medication.",
-    typeIcon: User,
-  },
-  {
-    id: "2",
-    type: "prescription",
-    title: "Paracetamol 500mg",
-    doctor: "Dr. Oluwaseun Adeyemi",
-    date: "Nov 28, 2024",
-    description: "Take one tablet every 6 hours after meals for headache relief.",
-    status: "Active",
-    typeIcon: Pill,
-  },
-  {
-    id: "3",
-    type: "test",
-    title: "Blood Test Results",
-    doctor: "Dr. Amara Obi",
-    date: "Nov 15, 2024",
-    description: "Complete blood count - All values within normal range.",
-    status: "Normal",
-    typeIcon: Activity,
-  },
-  {
-    id: "4",
-    type: "diagnosis",
-    title: "Tension Headache",
-    doctor: "Dr. Oluwaseun Adeyemi",
-    date: "Nov 10, 2024",
-    description: "Diagnosed with tension-type headache. Prescribed medication and lifestyle modifications.",
-    typeIcon: FileText,
-  },
-]
-
-const typeStyles = {
-  consultation: { gradient: "from-primary/20 to-primary/10", color: "text-primary" },
-  prescription: { gradient: "from-accent/20 to-accent/10", color: "text-accent" },
-  test: { gradient: "from-kliniq-cyan/20 to-kliniq-cyan/10", color: "text-kliniq-cyan" },
-  diagnosis: { gradient: "from-green-500/20 to-green-500/10", color: "text-green-500" },
-}
-
 const urgencyStyles = {
   low: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20",
   medium: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
@@ -233,10 +56,32 @@ const urgencyLabels = {
   high: "Urgent",
 }
 
+const typeStyles = {
+  consultation: { gradient: "from-primary/20 to-primary/10", color: "text-primary" },
+  prescription: { gradient: "from-accent/20 to-accent/10", color: "text-accent" },
+  test: { gradient: "from-kliniq-cyan/20 to-kliniq-cyan/10", color: "text-kliniq-cyan" },
+  diagnosis: { gradient: "from-green-500/20 to-green-500/10", color: "text-green-500" },
+}
+
+// Map history type to icon component
+const getTypeIcon = (type: string) => {
+  switch (type) {
+    case "consultation": return User
+    case "prescription": return Pill
+    case "test": return Activity
+    case "diagnosis": return FileText
+    default: return FileText
+  }
+}
+
+
+
 export default function PatientDetailPage() {
   const params = useParams()
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [patientData, setPatientData] = useState<PatientDetailResponse | null>(null)
   const [activeTab, setActiveTab] = useState<"overview" | "notes" | "queries" | "history">("overview")
   const [isAddingNote, setIsAddingNote] = useState(false)
   const [newNote, setNewNote] = useState({
@@ -254,18 +99,39 @@ export default function PatientDetailPage() {
   const [showApproveConfirmModal, setShowApproveConfirmModal] = useState(false)
   const [showAddNoteModal, setShowAddNoteModal] = useState(false)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
-  const [editedNotes, setEditedNotes] = useState<Record<string, MedicalNote & { editedDate?: string }>>({})
+  const [editedNotes, setEditedNotes] = useState<Record<string, any>>({})
   const { toast } = useToast()
 
   useEffect(() => {
     setMounted(true)
-    // Initialize query responses with AI drafts
-    const initialResponses: Record<string, string> = {}
-    mockQueries.forEach((q) => {
-      initialResponses[q.id] = q.aiDraft
-    })
-    setQueryResponses(initialResponses)
+    fetchPatientDetail()
   }, [])
+
+  const fetchPatientDetail = async () => {
+    if (!params.id) return
+
+    try {
+      setLoading(true)
+      const data = await clinicianApi.getPatientDetail(params.id as string)
+      setPatientData(data)
+
+      // Initialize query responses with AI drafts
+      const initialResponses: Record<string, string> = {}
+      data.pending_queries.forEach((q) => {
+        if (q.ai_draft) initialResponses[q.id] = q.ai_draft
+      })
+      setQueryResponses(initialResponses)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load patient details. Please try again.",
+        variant: "destructive",
+      })
+      router.push("/clinician/patients")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const addMedicationField = () => {
     setNewNote({ ...newNote, medications: [...newNote.medications, ""] })
@@ -285,19 +151,23 @@ export default function PatientDetailPage() {
     setNewNote({ ...newNote, lifestyle: updated })
   }
 
+
   const copyAISummary = () => {
-    navigator.clipboard.writeText(mockTriage.aiSummary)
+    if (!patientData?.triage?.ai_summary) return
+    navigator.clipboard.writeText(patientData.triage.ai_summary)
     setCopiedAI(true)
     setTimeout(() => setCopiedAI(false), 2000)
   }
 
   const handleAcceptAISuggestion = () => {
-    setNurseResponse(mockTriage.aiRecommendation)
+    if (!patientData?.triage?.ai_recommendation) return
+    setNurseResponse(patientData.triage.ai_recommendation)
     toast({
       title: "AI Suggestion Accepted",
       description: "AI recommendation has been added to your response.",
     })
   }
+
 
   const handleSendNurseResponse = () => {
     if (!nurseResponse.trim()) {
@@ -312,18 +182,20 @@ export default function PatientDetailPage() {
   }
 
   const confirmSendResponse = () => {
+    if (!patientData) return
     toast({
       title: "Response Sent",
-      description: `Your response to ${mockPatient.name} has been sent. +10 points earned!`,
+      description: `Your response to ${patientData.patient.name} has been sent. +10 points earned!`,
     })
     setNurseResponse("")
     setShowSendConfirmModal(false)
   }
 
   const handleEscalateToDoctor = (doctorName: string) => {
+    if (!patientData) return
     toast({
       title: "Escalated to Doctor",
-      description: `${mockPatient.name}'s case has been escalated to ${doctorName} for medical review.`,
+      description: `${patientData.patient.name}'s case has been escalated to ${doctorName} for medical review.`,
       variant: "destructive",
     })
     setShowEscalateModal(false)
@@ -347,7 +219,7 @@ export default function PatientDetailPage() {
   const handleEditNote = (noteId: string) => {
     if (editingNoteId === noteId) {
       // Save the edited note
-      const note = mockNotes.find(n => n.id === noteId)
+      const note = medical_notes.find(n => n.id === noteId)
       if (note) {
         setEditedNotes({
           ...editedNotes,
@@ -367,19 +239,33 @@ export default function PatientDetailPage() {
     }
   }
 
+
   const tabs = [
     { id: "overview", label: "Overview", icon: Stethoscope },
-    { id: "notes", label: "Medical Notes", icon: FileText, badge: mockNotes.length },
+    { id: "notes", label: "Medical Notes", icon: FileText, badge: patientData?.medical_notes.length || 0 },
     {
       id: "queries",
       label: "Patient Queries",
       icon: MessageSquare,
-      badge: mockQueries.filter((q) => q.status === "pending").length,
+      badge: patientData?.pending_queries.filter((q) => q.status === "pending").length || 0,
     },
     { id: "history", label: "History", icon: History },
   ]
 
   if (!mounted) return null
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading patient details...</p>
+        </div>
+      </div>
+    )
+  }
+  if (!patientData) return null
+
+  const { patient, triage, medical_notes, pending_queries, history } = patientData
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
@@ -399,17 +285,17 @@ export default function PatientDetailPage() {
               </button>
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-lg sm:text-xl font-bold text-foreground">{mockPatient.name}</h1>
+                  <h1 className="text-lg sm:text-xl font-bold text-foreground">{patient.name}</h1>
                   <span
                     className={cn(
                       "px-2.5 py-1 rounded-full text-xs font-medium border",
-                      urgencyStyles[mockTriage.urgency],
+                      urgencyStyles[triage?.urgency || 'medium'],
                     )}
                   >
-                    {urgencyLabels[mockTriage.urgency]}
+                    {urgencyLabels[triage?.urgency || 'medium']}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground">Patient ID: {mockPatient.id}</p>
+                <p className="text-sm text-muted-foreground">Patient ID: {patient.patient_id}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -436,16 +322,16 @@ export default function PatientDetailPage() {
               <div className="relative">
                 <div className="flex items-start gap-4 mb-6">
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-xl shadow-lg shadow-primary/20">
-                    {mockPatient.avatar}
+                    {patient.avatar}
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-lg font-bold text-foreground">{mockPatient.name}</h2>
+                    <h2 className="text-lg font-bold text-foreground">{patient.name}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {mockPatient.age} years old, {mockPatient.gender}
+                      {patient.age} years old, {patient.gender}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Globe className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-sm text-primary font-medium">{mockPatient.language}</span>
+                      <span className="text-sm text-primary font-medium">{patient.language}</span>
                     </div>
                   </div>
                 </div>
@@ -455,19 +341,19 @@ export default function PatientDetailPage() {
                     <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center">
                       <Phone className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <span className="text-foreground">{mockPatient.phone}</span>
+                    <span className="text-foreground">{patient.phone}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center">
                       <MapPin className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <span className="text-foreground">{mockPatient.location}</span>
+                    <span className="text-foreground">{patient.location}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
                     <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center">
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <span className="text-muted-foreground">Linked since {mockPatient.linkedSince}</span>
+                    <span className="text-muted-foreground">Linked since {patient.linked_since}</span>
                   </div>
                 </div>
 
@@ -475,11 +361,11 @@ export default function PatientDetailPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="p-3 rounded-xl bg-secondary/30">
                       <p className="text-xs text-muted-foreground mb-1">Blood Type</p>
-                      <p className="font-semibold text-foreground">{mockPatient.bloodType}</p>
+                      <p className="font-semibold text-foreground">{patient.blood_type}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-destructive/10">
                       <p className="text-xs text-muted-foreground mb-1">Allergies</p>
-                      <p className="font-semibold text-destructive text-sm">{mockPatient.allergies.join(", ")}</p>
+                      <p className="font-semibold text-destructive text-sm">{patient.allergies || "None"}</p>
                     </div>
                   </div>
 
@@ -507,7 +393,7 @@ export default function PatientDetailPage() {
             </motion.div>
 
             {/* Vital Signs */}
-            {mockTriage.vitalSigns && (
+            {triage?.vital_signs && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -522,25 +408,25 @@ export default function PatientDetailPage() {
                   {[
                     {
                       label: "Temperature",
-                      value: mockTriage.vitalSigns.temperature,
+                      value: triage.vital_signs.temperature,
                       icon: ThermometerSun,
                       color: "text-orange-500",
                     },
                     {
                       label: "Blood Pressure",
-                      value: mockTriage.vitalSigns.bloodPressure,
+                      value: triage.vital_signs.blood_pressure,
                       icon: Heart,
                       color: "text-red-500",
                     },
                     {
                       label: "Heart Rate",
-                      value: mockTriage.vitalSigns.heartRate,
+                      value: triage.vital_signs.heart_rate,
                       icon: Activity,
                       color: "text-pink-500",
                     },
                     {
                       label: "Oxygen Level",
-                      value: mockTriage.vitalSigns.oxygenLevel,
+                      value: triage.vital_signs.oxygen_level,
                       icon: Activity,
                       color: "text-cyan-500",
                     },
@@ -634,24 +520,24 @@ export default function PatientDetailPage() {
                           <Clipboard className="w-5 h-5 text-primary" />
                           Triage Summary
                         </h3>
-                        <p className="text-sm text-muted-foreground mt-1">Submitted {mockTriage.submittedAt}</p>
+                        <p className="text-sm text-muted-foreground mt-1">Submitted {triage?.submitted_at}</p>
                       </div>
                       <span
                         className={cn(
                           "px-3 py-1.5 rounded-full text-sm font-medium border",
-                          urgencyStyles[mockTriage.urgency],
+                          urgencyStyles[triage?.urgency || 'medium'],
                         )}
                       >
-                        {mockTriage.urgency.charAt(0).toUpperCase() + mockTriage.urgency.slice(1)} Urgency
+                        {triage?.urgency ? triage.urgency.charAt(0).toUpperCase() + triage.urgency.slice(1) : 'Medium'} Urgency
                       </span>
                     </div>
 
                     <div className="p-4 rounded-2xl bg-secondary/30 mb-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Duration: {mockTriage.duration}</span>
+                        <span className="text-sm text-muted-foreground">Duration: {triage?.duration}</span>
                       </div>
-                      <p className="text-foreground leading-relaxed">{mockTriage.symptoms}</p>
+                      <p className="text-foreground leading-relaxed">{triage?.symptoms}</p>
                     </div>
 
                     {/* AI Analysis */}
@@ -678,11 +564,11 @@ export default function PatientDetailPage() {
                           </button>
                         </div>
 
-                        <p className="text-sm text-foreground/80 leading-relaxed mb-4">{mockTriage.aiSummary}</p>
+                        <p className="text-sm text-foreground/80 leading-relaxed mb-4">{triage?.ai_summary}</p>
 
                         <div className="p-3 rounded-xl bg-card/50 border border-border/50">
                           <p className="text-xs font-medium text-primary mb-1">Recommendation</p>
-                          <p className="text-sm text-foreground/80">{mockTriage.aiRecommendation}</p>
+                          <p className="text-sm text-foreground/80">{triage?.ai_recommendation}</p>
                         </div>
                       </div>
                     </div>
@@ -772,7 +658,7 @@ export default function PatientDetailPage() {
 
                             <div>
                               <label className="text-sm font-medium text-foreground mb-2 block">Medications</label>
-                              {newNote.medications.map((med, index) => (
+                              {newNote.medications.map((med: string, index: number) => (
                                 <div key={index} className="flex gap-2 mb-2">
                                   <Input
                                     placeholder="Medication name and dosage..."
@@ -806,7 +692,7 @@ export default function PatientDetailPage() {
                               <label className="text-sm font-medium text-foreground mb-2 block">
                                 Lifestyle Changes
                               </label>
-                              {newNote.lifestyle.map((item, index) => (
+                              {newNote.lifestyle.map((item: string, index: number) => (
                                 <div key={index} className="flex gap-2 mb-2">
                                   <Input
                                     placeholder="Lifestyle recommendation..."
@@ -878,7 +764,7 @@ export default function PatientDetailPage() {
                       Add Note
                     </Button>
                   </div>
-                  {mockNotes.map((note, index) => (
+                  {medical_notes.map((note: any, index: number) => (
                     <motion.div
                       key={note.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -942,7 +828,7 @@ export default function PatientDetailPage() {
                             Medications
                           </p>
                           <div className="space-y-2">
-                            {(editedNotes[note.id]?.medications || note.medications).map((med, i) => (
+                            {(editedNotes[note.id]?.medications || note.medications).map((med: string, i: number) => (
                               editingNoteId === note.id ? (
                                 <div key={i} className="flex gap-2">
                                   <Input
@@ -1002,7 +888,7 @@ export default function PatientDetailPage() {
                             Lifestyle Changes
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            {(editedNotes[note.id]?.lifestyle || note.lifestyle).map((item, i) => (
+                            {(editedNotes[note.id]?.lifestyle || note.lifestyle).map((item: string, i: number) => (
                               editingNoteId === note.id ? (
                                 <div key={i} className="flex gap-2">
                                   <Input
@@ -1092,7 +978,7 @@ export default function PatientDetailPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  {mockQueries.map((query, index) => (
+                  {pending_queries.map((query: any, index: number) => (
                     <motion.div
                       key={query.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1180,7 +1066,7 @@ export default function PatientDetailPage() {
                         <Languages className="w-3.5 h-3.5" />
                         <span>
                           Response will be translated to{" "}
-                          <strong className="text-primary">{mockPatient.language}</strong> for the patient
+                          <strong className="text-primary">{patient.language}</strong> for the patient
                         </span>
                       </div>
                     </motion.div>
@@ -1197,7 +1083,7 @@ export default function PatientDetailPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-4"
                 >
-                  {mockHistory.map((item, index) => (
+                  {history.map((item: any, index: number) => (
                     <motion.div
                       key={item.id}
                       initial={{ opacity: 0, y: 20 }}
@@ -1206,8 +1092,11 @@ export default function PatientDetailPage() {
                       className="p-6 rounded-3xl bg-card border border-border/50 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
                     >
                       <div className="flex items-start gap-4">
-                        <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shrink-0", typeStyles[item.type].gradient)}>
-                          <item.typeIcon className={cn("w-6 h-6", typeStyles[item.type].color)} />
+                        <div className={cn("w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center shrink-0", typeStyles[item.type as keyof typeof typeStyles]?.gradient || "from-primary/20 to-primary/10")}>
+                          {(() => {
+                            const IconComponent = getTypeIcon(item.type)
+                            return <IconComponent className={cn("w-6 h-6", typeStyles[item.type as keyof typeof typeStyles]?.color || "text-primary")} />
+                          })()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-3 mb-2">
@@ -1325,7 +1214,7 @@ export default function PatientDetailPage() {
             >
               <h3 className="text-2xl font-bold text-foreground mb-2">Confirm Send Response</h3>
               <p className="text-muted-foreground mb-6">
-                Are you sure you want to send this response to {mockPatient.name}?
+                Are you sure you want to send this response to {patient.name}?
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowSendConfirmModal(false)}>
@@ -1374,7 +1263,7 @@ export default function PatientDetailPage() {
 
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">Medications</label>
-                  {newNote.medications.map((med, index) => (
+                  {newNote.medications.map((med: string, index: number) => (
                     <div key={index} className="flex gap-2 mb-2">
                       <Input
                         placeholder="Medication and dosage..."
@@ -1406,7 +1295,7 @@ export default function PatientDetailPage() {
 
                 <div>
                   <label className="text-sm font-medium text-foreground mb-2 block">Lifestyle Changes</label>
-                  {newNote.lifestyle.map((item, index) => (
+                  {newNote.lifestyle.map((item: string, index: number) => (
                     <div key={index} className="flex gap-2 mb-2">
                       <Input
                         placeholder="Lifestyle recommendation..."
